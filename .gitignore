@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.claude/settings.json
+plano-de-trabalho.md
+Trabalho_PIVC_2026_1_Software.pdf
+gesture-hub.md
