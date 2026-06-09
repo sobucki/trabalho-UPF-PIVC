@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Slot
 from .processing_view import ProcessingView
+from .command_settings_dialog import CommandSettingsDialog
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -100,6 +101,7 @@ class MainWindow(QMainWindow):
         self.btn_simular.clicked.connect(self._simulate_gesture)
         
         self.btn_configurar = QPushButton("Configurar comandos")
+        self.btn_configurar.clicked.connect(self._open_command_settings)
         self.btn_carregar_img = QPushButton("Carregar imagem")
         self.btn_carregar_vid = QPushButton("Carregar vídeo")
         
@@ -154,3 +156,7 @@ class MainWindow(QMainWindow):
         self.confianca_value.setText("92%")
         self.status_value.setText("Comando executado")
         self.cooldown_value.setText("0.7s")
+
+    def _open_command_settings(self):
+        dialog = CommandSettingsDialog(self)
+        dialog.exec()
