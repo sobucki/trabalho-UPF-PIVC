@@ -1,16 +1,16 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QPushButton, QFrame, QGroupBox, QGridLayout,
-    QRadioButton, QButtonGroup, QMessageBox
+    QLabel, QPushButton, QFrame, QGroupBox, QGridLayout, QMessageBox
 )
 from PySide6.QtCore import Qt, Slot
+from .processing_view import ProcessingView
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
         self.setWindowTitle("GestureHub CV")
-        self.resize(900, 700)
+        self.resize(1000, 750)
         
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -23,7 +23,6 @@ class MainWindow(QMainWindow):
     def _setup_ui(self):
         self._create_header()
         self._create_content()
-        self._create_visualization_controls()
         self._create_footer_controls()
         
     def _create_header(self):
@@ -44,49 +43,15 @@ class MainWindow(QMainWindow):
         
     def _create_content(self):
         content_layout = QHBoxLayout()
-        self._create_camera_area(content_layout)
+        
+        # Area de visualização do processamento
+        self.processing_view = ProcessingView()
+        content_layout.addWidget(self.processing_view, stretch=3)
+        
+        # Painel de Reconhecimento
         self._create_recognition_panel(content_layout)
+        
         self.main_layout.addLayout(content_layout)
-
-    def _create_camera_area(self, parent_layout):
-        # Frame containing camera elements
-        camera_container = QFrame()
-        camera_container.setStyleSheet("background-color: #1e1e1e;")
-        camera_container.setMinimumSize(640, 480)
-        camera_layout = QVBoxLayout(camera_container)
-        camera_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Display label for current visual mode
-        self.vis_mode_label = QLabel("Modo de visualização: Original")
-        self.vis_mode_label.setStyleSheet("color: white; font-size: 14px;")
-        self.vis_mode_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        camera_layout.addWidget(self.vis_mode_label)
-        camera_layout.addStretch()
-        
-        self.camera_label = QLabel("Câmera desligada")
-        self.camera_label.setStyleSheet("color: #aaaaaa; font-size: 20px;")
-        self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        camera_layout.addWidget(self.camera_label)
-        
-        # Simulated ROI Frame
-        self.roi_frame = QFrame()
-        self.roi_frame.setFixedSize(200, 200)
-        self.roi_frame.setStyleSheet("""
-            QFrame {
-                border: 2px dashed #4caf50;
-                background-color: transparent;
-            }
-        """)
-        roi_layout = QVBoxLayout(self.roi_frame)
-        self.roi_label = QLabel("Área de controle da mão")
-        self.roi_label.setStyleSheet("color: #4caf50; border: none;")
-        self.roi_label.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
-        roi_layout.addWidget(self.roi_label)
-        self.roi_frame.setVisible(False)
-        camera_layout.addWidget(self.roi_frame, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        camera_layout.addStretch()
-        parent_layout.addWidget(camera_container, stretch=2)
 
     def _create_recognition_panel(self, parent_layout):
         self.recognition_group = QGroupBox("Painel de reconhecimento")
@@ -121,26 +86,6 @@ class MainWindow(QMainWindow):
         parent_layout.addWidget(container)
         return value_label
 
-    def _create_visualization_controls(self):
-        vis_layout = QHBoxLayout()
-        vis_label = QLabel("Visualização:")
-        vis_label.setStyleSheet("font-weight: bold;")
-        vis_layout.addWidget(vis_label)
-        
-        self.vis_group = QButtonGroup(self)
-        
-        modes = ["Original", "Segmentada", "Contornos", "Resultado final"]
-        for i, mode in enumerate(modes):
-            rb = QRadioButton(mode)
-            if i == 0:
-                rb.setChecked(True)
-            rb.toggled.connect(lambda checked, m=mode: self._set_visualization_mode(m) if checked else None)
-            self.vis_group.addButton(rb)
-            vis_layout.addWidget(rb)
-            
-        vis_layout.addStretch()
-        self.main_layout.addLayout(vis_layout)
-
     def _create_footer_controls(self):
         footer_layout = QHBoxLayout()
         
@@ -170,15 +115,12 @@ class MainWindow(QMainWindow):
 
     def _set_running_state(self, running: bool):
         self.is_running = running
+        self.processing_view.set_running(running)
         
         if running:
             self.integration_label.setText("Integração: Apresentações | ATIVO")
             self.btn_iniciar.setEnabled(False)
             self.btn_parar.setEnabled(True)
-            
-            self.camera_label.setText("Aguardando frame da câmera...")
-            self.camera_label.setVisible(True)
-            self.roi_frame.setVisible(True)
             
             self.gesto_value.setText("Aguardando gesto...")
             self.evento_value.setText("-")
@@ -194,10 +136,6 @@ class MainWindow(QMainWindow):
             self._reset_recognition_state()
 
     def _reset_recognition_state(self):
-        self.camera_label.setText("Câmera desligada")
-        self.camera_label.setVisible(True)
-        self.roi_frame.setVisible(False)
-        
         self.gesto_value.setText("-")
         self.evento_value.setText("-")
         self.comando_value.setText("-")
@@ -216,6 +154,3 @@ class MainWindow(QMainWindow):
         self.confianca_value.setText("92%")
         self.status_value.setText("Comando executado")
         self.cooldown_value.setText("0.7s")
-
-    def _set_visualization_mode(self, mode: str):
-        self.vis_mode_label.setText(f"Modo de visualização: {mode}")

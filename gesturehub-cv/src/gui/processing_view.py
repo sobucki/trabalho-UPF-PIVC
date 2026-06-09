@@ -1,0 +1,258 @@
+from PySide6.QtWidgets import (
+    QFrame, QVBoxLayout, QHBoxLayout, QGridLayout, 
+    QLabel, QButtonGroup, QPushButton, QWidget, QSizePolicy
+)
+from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QPixmap
+
+PROCESSING_MODES = [
+    "Original",
+    "HSV",
+    "Máscara / Threshold",
+    "Contornos",
+    "Resultado final",
+    "Grade"
+]
+
+class ProcessingView(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+        self.setMinimumSize(640, 480)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        self.is_running = False
+        self.current_mode = "Original"
+        
+        # Internal layouts and widgets references
+        self.view_container = None
+        self.view_layout = None
+        
+        # Single View widgets
+        self.single_view_frame = None
+        self.single_view_label = None
+        self.single_view_title = None
+        self.roi_frame = None
+        
+        # Grid View widgets
+        self.grid_cards = {}
+        
+        self._setup_ui()
+        
+    def _setup_ui(self):
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Header / Title
+        title_label = QLabel("Processamento OpenCV")
+        title_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #dddddd;")
+        self.main_layout.addWidget(title_label)
+        
+        # Mode Controls
+        self._create_controls()
+        
+        # View Container (this will hold either single view or grid view)
+        self.view_container = QWidget()
+        self.view_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.view_layout = QVBoxLayout(self.view_container)
+        self.view_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.addWidget(self.view_container, stretch=1)
+        
+        # Initialize default view
+        self.show_single_view(self.current_mode)
+        
+    def _create_controls(self):
+        controls_layout = QHBoxLayout()
+        self.btn_group = QButtonGroup(self)
+        self.btn_group.setExclusive(True)
+        
+        for i, mode in enumerate(PROCESSING_MODES):
+            btn = QPushButton(mode)
+            btn.setCheckable(True)
+            if mode == self.current_mode:
+                btn.setChecked(True)
+                
+            self.btn_group.addButton(btn)
+            controls_layout.addWidget(btn)
+            
+            # Connect the signal with default arguments correctly to avoid late binding issues
+            btn.toggled.connect(lambda checked, m=mode: self.set_mode(m) if checked else None)
+            
+        controls_layout.addStretch()
+        self.main_layout.addLayout(controls_layout)
+        
+    def set_running(self, is_running: bool):
+        self.is_running = is_running
+        self._update_placeholders()
+        
+    def set_mode(self, mode: str):
+        if self.current_mode == mode:
+            return
+            
+        self.current_mode = mode
+        
+        if mode == "Grade":
+            self.show_grid_view()
+        else:
+            self.show_single_view(mode)
+            
+    def _clear_view(self):
+        # Remove all widgets from the view layout
+        while self.view_layout.count():
+            item = self.view_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+                
+        self.single_view_frame = None
+        self.single_view_label = None
+        self.single_view_title = None
+        self.roi_frame = None
+        self.grid_cards.clear()
+
+    def show_single_view(self, mode: str):
+        self._clear_view()
+        
+        self.single_view_frame = QFrame()
+        self.single_view_frame.setStyleSheet("background-color: #1e1e1e; border-radius: 5px;")
+        
+        layout = QVBoxLayout(self.single_view_frame)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        self.single_view_title = QLabel(f"Modo de visualização: {mode}")
+        self.single_view_title.setStyleSheet("color: white; font-size: 14px; padding: 5px;")
+        self.single_view_title.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        
+        description_text = self._get_mode_description(mode)
+        desc_label = QLabel(description_text)
+        desc_label.setStyleSheet("color: #888888; font-size: 12px;")
+        desc_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        
+        header_layout = QVBoxLayout()
+        header_layout.addWidget(self.single_view_title)
+        header_layout.addWidget(desc_label)
+        header_layout.setSpacing(2)
+        
+        layout.addLayout(header_layout)
+        layout.addStretch()
+        
+        self.single_view_label = QLabel()
+        self.single_view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.single_view_label.setStyleSheet("color: #aaaaaa; font-size: 20px;")
+        layout.addWidget(self.single_view_label)
+        
+        # Setup ROI frame
+        self.roi_frame = QFrame()
+        self.roi_frame.setFixedSize(200, 200)
+        self.roi_frame.setStyleSheet("""
+            QFrame {
+                border: 2px dashed #4caf50;
+                background-color: transparent;
+            }
+        """)
+        roi_layout = QVBoxLayout(self.roi_frame)
+        roi_label = QLabel("Área de controle da mão")
+        roi_label.setStyleSheet("color: #4caf50; border: none; font-size: 10px;")
+        roi_label.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
+        roi_layout.addWidget(roi_label)
+        
+        layout.addWidget(self.roi_frame, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch()
+        
+        # Only show ROI on specific modes
+        if mode in ["Original", "Resultado final"]:
+            self.roi_frame.setVisible(True)
+        else:
+            self.roi_frame.setVisible(False)
+            
+        self.view_layout.addWidget(self.single_view_frame)
+        self._update_placeholders()
+
+    def show_grid_view(self):
+        self._clear_view()
+        
+        grid_container = QWidget()
+        grid_layout = QGridLayout(grid_container)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
+        grid_layout.setSpacing(10)
+        
+        modes_to_show = [
+            ("Original", 0, 0),
+            ("Máscara / Threshold", 0, 1),
+            ("Contornos", 1, 0),
+            ("Resultado final", 1, 1)
+        ]
+        
+        for mode, row, col in modes_to_show:
+            card, img_label = self._create_processing_card(mode, self._get_mode_description(mode))
+            self.grid_cards[mode] = img_label
+            grid_layout.addWidget(card, row, col)
+            
+        self.view_layout.addWidget(grid_container)
+        self._update_placeholders()
+
+    def _create_processing_card(self, title: str, description: str):
+        card = QFrame()
+        card.setStyleSheet("background-color: #1e1e1e; border: 1px solid #333333; border-radius: 5px;")
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(10, 10, 10, 10)
+        
+        title_label = QLabel(title)
+        title_label.setStyleSheet("color: white; font-weight: bold; border: none;")
+        
+        desc_label = QLabel(description)
+        desc_label.setStyleSheet("color: #888888; font-size: 10px; border: none;")
+        
+        img_label = QLabel()
+        img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        img_label.setStyleSheet("color: #aaaaaa; border: none;")
+        
+        layout.addWidget(title_label)
+        layout.addWidget(desc_label)
+        layout.addStretch()
+        layout.addWidget(img_label, stretch=1)
+        layout.addStretch()
+        
+        return card, img_label
+
+    def _get_mode_description(self, mode: str) -> str:
+        descriptions = {
+            "Original": "Frame original da câmera",
+            "HSV": "Conversão de cores para HSV",
+            "Máscara / Threshold": "Segmentação da região da mão",
+            "Contornos": "Contorno principal detectado",
+            "Resultado final": "Gesto classificado e feedback visual",
+            "Grade": "Visão geral do pipeline de processamento"
+        }
+        return descriptions.get(mode, "")
+
+    def _update_placeholders(self):
+        text = "Aguardando frame..." if self.is_running else "Câmera desligada"
+        
+        if self.current_mode == "Grade":
+            for label in self.grid_cards.values():
+                label.setText(text)
+        else:
+            if self.single_view_label:
+                self.single_view_label.setText(text)
+                
+        # ROI visibility logic
+        if self.roi_frame:
+            if not self.is_running:
+                self.roi_frame.setVisible(False)
+            elif self.current_mode in ["Original", "Resultado final"]:
+                self.roi_frame.setVisible(True)
+
+    def update_frame(self, mode: str, pixmap: QPixmap):
+        """
+        Método preparado para receber frames processados do OpenCV no futuro.
+        """
+        if self.current_mode == "Grade":
+            if mode in self.grid_cards:
+                self.grid_cards[mode].setPixmap(pixmap)
+        else:
+            if self.current_mode == mode and self.single_view_label:
+                self.single_view_label.setPixmap(pixmap)
