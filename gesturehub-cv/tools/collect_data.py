@@ -12,19 +12,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config.paths import HAND_LANDMARKER_MODEL_PATH, GESTURE_DATA_PATH
+from src.vision.landmark_utils import HAND_CONNECTIONS, normalizar_landmarks
 
 CSV_PATH = str(GESTURE_DATA_PATH)
 MODEL_PATH = str(HAND_LANDMARKER_MODEL_PATH)
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 
-HAND_CONNECTIONS = [
-    (0, 1), (1, 2), (2, 3), (3, 4),
-    (0, 5), (5, 6), (6, 7), (7, 8),
-    (5, 9), (9, 10), (10, 11), (11, 12),
-    (9, 13), (13, 14), (14, 15), (15, 16),
-    (13, 17), (17, 18), (18, 19), (19, 20),
-    (0, 17),
-]
+
 
 num_landmarks = 21
 
@@ -60,12 +54,7 @@ def desenhar_landmarks(frame, landmarks, w, h):
         cv2.circle(frame, (x, y), 4, (255, 255, 255), -1)
 
 
-def normalizar_landmarks(landmarks):
-    coords = np.array([[lm.x, lm.y] for lm in landmarks])
-    punho = coords[0]
-    coords -= punho
-    max_dist = np.max(np.linalg.norm(coords, axis=1)) or 1.0
-    return (coords / max_dist).flatten()
+
 
 
 def salvar_amostra(label, features):
