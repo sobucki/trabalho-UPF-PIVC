@@ -18,11 +18,20 @@ from src.vision.gesture_labels import (
 )
 from src.vision.gesture_stabilizer import GestureStabilizer
 from src.vision.frame_renderer import render_final_frame
+from src.vision.frame_processing import (
+    validate_bgr_frame,
+    create_hsv_frame,
+    create_threshold_mask_frame,
+    create_contours_frame
+)
 
 
 class GesturePipelineResult(TypedDict):
     original_frame: np.ndarray
     rgb_frame: np.ndarray
+    hsv_frame: np.ndarray
+    mask_frame: np.ndarray
+    contours_frame: np.ndarray
     result_frame: np.ndarray
     landmarks_found: bool
     raw_label: int | None
@@ -95,15 +104,6 @@ class GesturePipeline:
     ) -> None:
         self.close()
 
-    def _validate_frame(self, frame_bgr: np.ndarray) -> np.ndarray:
-        if frame_bgr is None:
-            raise ValueError("frame_bgr must be a valid BGR image with shape (height, width, 3).")
-        if not isinstance(frame_bgr, np.ndarray):
-            raise ValueError("frame_bgr must be a valid BGR image with shape (height, width, 3).")
-        if frame_bgr.ndim != 3 or frame_bgr.shape[2] != 3:
-            raise ValueError("frame_bgr must be a valid BGR image with shape (height, width, 3).")
-        return np.ascontiguousarray(frame_bgr)
-
     def _get_status_text(self, stabilizer_status: str, landmarks_found: bool) -> str:
         if stabilizer_status == "NO_GESTURE":
             return "Nenhum gesto reconhecido" if landmarks_found else "Sem mao detectada"
@@ -127,6 +127,9 @@ class GesturePipeline:
         self,
         original_frame: np.ndarray,
         rgb_frame: np.ndarray,
+        hsv_frame: np.ndarray,
+        mask_frame: np.ndarray,
+        contours_frame: np.ndarray,
         result_frame: np.ndarray,
         landmarks_found: bool,
         raw_label: int | None,
@@ -138,6 +141,9 @@ class GesturePipeline:
         return {
             "original_frame": original_frame,
             "rgb_frame": rgb_frame,
+            "hsv_frame": hsv_frame,
+            "mask_frame": mask_frame,
+            "contours_frame": contours_frame,
             "result_frame": result_frame,
             "landmarks_found": landmarks_found,
             "raw_label": raw_label,
@@ -162,15 +168,23 @@ class GesturePipeline:
         if not self.is_started:
             raise RuntimeError("GesturePipeline must be started before processing frames.")
 
-        frame_bgr = self._validate_frame(frame_bgr)
+        frame_bgr = validate_bgr_frame(frame_bgr)
         original_frame = frame_bgr.copy()
         
         rgb_frame = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        
+        # Gerar frames base
+        hsv_frame = create_hsv_frame(frame_bgr)
+        mask_frame = create_threshold_mask_frame(frame_bgr)
         
         mp_result = self.hand_landmarker.detect(rgb_frame, timestamp_ms)
         
         if mp_result.hand_landmarks:
             landmarks = mp_result.hand_landmarks[0]
+            
+            # Contornos estruturais (Landmarks)
+            contours_frame = create_contours_frame(frame_bgr, landmarks)
+            
             raw_label = self.classifier.predict_from_landmarks(landmarks)
             
             gesture = get_gesture_name(raw_label)
@@ -194,6 +208,9 @@ class GesturePipeline:
             return self._build_result(
                 original_frame=original_frame,
                 rgb_frame=rgb_frame,
+                hsv_frame=hsv_frame,
+                mask_frame=mask_frame,
+                contours_frame=contours_frame,
                 result_frame=result_frame,
                 landmarks_found=True,
                 raw_label=raw_label,
@@ -204,6 +221,9 @@ class GesturePipeline:
             )
         else:
             stabilizer_result = self.stabilizer.update(None)
+            
+            # Contornos estruturais (Canny edge)
+            contours_frame = create_contours_frame(frame_bgr, None)
             
             raw_label = None
             gesture = "Nenhum"
@@ -225,6 +245,9 @@ class GesturePipeline:
             return self._build_result(
                 original_frame=original_frame,
                 rgb_frame=rgb_frame,
+                hsv_frame=hsv_frame,
+                mask_frame=mask_frame,
+                contours_frame=contours_frame,
                 result_frame=result_frame,
                 landmarks_found=False,
                 raw_label=raw_label,

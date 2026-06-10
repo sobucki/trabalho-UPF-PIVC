@@ -31,6 +31,9 @@ class ProcessingView(QFrame):
         self.is_running = False
         self.current_mode = "Original"
         
+        # Armazena as imagens reais mais recentes para cada modo (usado no resizeEvent)
+        self._last_pixmaps: dict[str, QPixmap] = {}
+        
         # Internal layouts and widgets references
         self.view_container = None
         self.view_layout = None
@@ -89,6 +92,8 @@ class ProcessingView(QFrame):
         
     def set_running(self, is_running: bool):
         self.is_running = is_running
+        if not is_running:
+            self._last_pixmaps.clear()
         self._update_placeholders()
         
     def set_mode(self, mode: str):
@@ -101,6 +106,9 @@ class ProcessingView(QFrame):
             self.show_grid_view()
         else:
             self.show_single_view(mode)
+            
+        # Reaplicar imagens armazenadas em cache logo apos trocar o modo, para não piscar placeholder se a camerta ta on
+        self._refresh_current_pixmaps()
             
     def _clear_view(self):
         # Remove all widgets from the view layout
@@ -144,6 +152,7 @@ class ProcessingView(QFrame):
         
         self.single_view_label = QLabel()
         self.single_view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.single_view_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout.addWidget(self.single_view_label)
         
         # Setup ROI frame
@@ -178,7 +187,7 @@ class ProcessingView(QFrame):
         
         modes_to_show = [
             ("Original", 0, 0),
-            ("Máscara / Threshold", 0, 1),
+            ("HSV", 0, 1),
             ("Contornos", 1, 0),
             ("Resultado final", 1, 1)
         ]
@@ -207,6 +216,7 @@ class ProcessingView(QFrame):
         
         img_label = QLabel()
         img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        img_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
@@ -218,12 +228,12 @@ class ProcessingView(QFrame):
 
     def _get_mode_description(self, mode: str) -> str:
         descriptions = {
-            "Original": "Frame original da câmera",
-            "HSV": "Conversão de cores para HSV",
-            "Máscara / Threshold": "Segmentação da região da mão",
-            "Contornos": "Contorno principal detectado",
-            "Resultado final": "Gesto classificado e feedback visual",
-            "Grade": "Visão geral do pipeline de processamento"
+            "Original": "Frame original capturado da webcam.",
+            "HSV": "Conversão de cor BGR para HSV usando OpenCV.",
+            "Máscara / Threshold": "Máscara binária gerada por threshold para demonstrar segmentação.",
+            "Contornos": "Visualização estrutural com landmarks da mão ou bordas Canny.",
+            "Resultado final": "Frame anotado com landmarks, gesto, evento e status.",
+            "Grade": "Comparação simultânea das principais etapas de processamento."
         }
         return descriptions.get(mode, "")
 
@@ -234,12 +244,14 @@ class ProcessingView(QFrame):
             for label in self.grid_cards.values():
                 if not self.is_running:
                     label.clear()
-                label.setText(text)
+                if not label.pixmap() or label.pixmap().isNull():
+                    label.setText(text)
         else:
             if self.single_view_label:
                 if not self.is_running:
                     self.single_view_label.clear()
-                self.single_view_label.setText(text)
+                if not self.single_view_label.pixmap() or self.single_view_label.pixmap().isNull():
+                    self.single_view_label.setText(text)
                 
         # ROI visibility logic
         if self.roi_frame:
@@ -249,7 +261,10 @@ class ProcessingView(QFrame):
                 self.roi_frame.setVisible(True)
 
     def _set_label_pixmap(self, label: QLabel, pixmap: QPixmap) -> None:
-        label.clear() # limpa o texto
+        if pixmap.isNull():
+            return
+            
+        label.clear() # limpa o texto do placeholder
         scaled_pixmap = pixmap.scaled(
             label.size(), 
             Qt.AspectRatioMode.KeepAspectRatio, 
@@ -258,12 +273,36 @@ class ProcessingView(QFrame):
         label.setPixmap(scaled_pixmap)
 
     def update_frame(self, mode: str, pixmap: QPixmap) -> None:
+        """
+        Recebe o frame recem-processado do modo correspondente, guarda no dicionário 
+        e atualiza sua respectiva QLabel na tela.
+        """
         if pixmap is None or pixmap.isNull():
             return
             
+        self._last_pixmaps[mode] = pixmap
+            
         if self.current_mode == "Grade":
-            if mode in self.grid_cards:
-                self._set_label_pixmap(self.grid_cards[mode], pixmap)
+            label = self.grid_cards.get(mode)
+            if label is not None:
+                self._set_label_pixmap(label, pixmap)
         else:
-            if self.current_mode == mode and self.single_view_label:
+            if mode == self.current_mode and self.single_view_label is not None:
                 self._set_label_pixmap(self.single_view_label, pixmap)
+                
+    def _refresh_current_pixmaps(self) -> None:
+        """Força o redesenho dos pixmaps correntes na UI usando o estado interno guardado"""
+        if not self.is_running:
+            return
+            
+        if self.current_mode == "Grade":
+            for mode_key, label in self.grid_cards.items():
+                if mode_key in self._last_pixmaps:
+                    self._set_label_pixmap(label, self._last_pixmaps[mode_key])
+        else:
+            if self.current_mode in self._last_pixmaps and self.single_view_label is not None:
+                self._set_label_pixmap(self.single_view_label, self._last_pixmaps[self.current_mode])
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._refresh_current_pixmaps()

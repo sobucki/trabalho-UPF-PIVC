@@ -215,24 +215,35 @@ class MainWindow(QMainWindow):
         self._update_recognition_panel_from_result(result)
 
     def _update_processing_view(self, result: dict) -> None:
-        # Pega o frame processado conforme o modo da processing view
         current_mode = self.processing_view.current_mode
-        
-        # Mapeamento dinâmico para evitar mostrar sempre a mesma imagem (se futuro permitirmos mais saídas do pipeline)
-        if current_mode == "Original":
-            frame_to_show = result["original_frame"]
-        else:
-            frame_to_show = result["result_frame"]
-            
-        pixmap = cv_frame_to_qpixmap(frame_to_show)
-        self.processing_view.update_frame(current_mode, pixmap)
-        
-        # Se for modo Grade, alimentamos ambas forçadamente para atualizar as diferentes views (temporário até gerar hsv)
+
+        MODE_TO_FRAME_KEY = {
+            "Original": "original_frame",
+            "HSV": "hsv_frame",
+            "Máscara / Threshold": "mask_frame",
+            "Contornos": "contours_frame",
+            "Resultado final": "result_frame",
+        }
+
         if current_mode == "Grade":
-            self.processing_view.update_frame("Original", cv_frame_to_qpixmap(result["original_frame"]))
-            self.processing_view.update_frame("Resultado final", pixmap)
-            self.processing_view.update_frame("Contornos", pixmap)
-            self.processing_view.update_frame("Máscara / Threshold", pixmap)
+            self._update_processing_grid(result)
+        else:
+            frame_key = MODE_TO_FRAME_KEY.get(current_mode, "result_frame")
+            frame_to_show = result[frame_key]
+            pixmap = cv_frame_to_qpixmap(frame_to_show)
+            self.processing_view.update_frame(current_mode, pixmap)
+
+    def _update_processing_grid(self, result: dict) -> None:
+        frames = {
+            "Original": result["original_frame"],
+            "HSV": result["hsv_frame"],
+            "Contornos": result["contours_frame"],
+            "Resultado final": result["result_frame"],
+        }
+
+        for mode, frame in frames.items():
+            pixmap = cv_frame_to_qpixmap(frame)
+            self.processing_view.update_frame(mode, pixmap)
 
     def _update_recognition_panel_from_result(self, result: dict) -> None:
         self.gesture_value.setText(result["gesture"])
