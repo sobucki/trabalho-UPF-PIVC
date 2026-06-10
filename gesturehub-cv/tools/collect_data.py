@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config.paths import HAND_LANDMARKER_MODEL_PATH, GESTURE_DATA_PATH
 from src.vision.landmark_utils import HAND_CONNECTIONS, normalizar_landmarks
+from src.vision.frame_renderer import desenhar_landmarks
 
 CSV_PATH = str(GESTURE_DATA_PATH)
 MODEL_PATH = str(HAND_LANDMARKER_MODEL_PATH)
@@ -46,12 +47,7 @@ def criar_detector():
     return vision.HandLandmarker.create_from_options(options)
 
 
-def desenhar_landmarks(frame, landmarks, w, h):
-    pts = [(int(lm.x * w), int(lm.y * h)) for lm in landmarks]
-    for a, b in HAND_CONNECTIONS:
-        cv2.line(frame, pts[a], pts[b], (0, 200, 0), 2)
-    for x, y in pts:
-        cv2.circle(frame, (x, y), 4, (255, 255, 255), -1)
+
 
 
 
@@ -112,7 +108,7 @@ def main():
             vetor = None
             if result.hand_landmarks:
                 landmarks = result.hand_landmarks[0]
-                desenhar_landmarks(frame, landmarks, w, h)
+                desenhar_landmarks(frame, landmarks)
                 vetor = normalizar_landmarks(landmarks)
 
             key = cv2.waitKey(1) & 0xFF
