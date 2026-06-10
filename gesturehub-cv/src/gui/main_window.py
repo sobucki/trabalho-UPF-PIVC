@@ -246,19 +246,25 @@ class MainWindow(QMainWindow):
             self.processing_view.update_frame(mode, pixmap)
 
     def _update_recognition_panel_from_result(self, result: dict) -> None:
-        self.gesture_value.setText(result["gesture"])
-        self.event_value.setText(result["event"])
-        self.command_value.setText(result["default_action"] if result["triggered"] else "-")
-        self.confidence_value.setText(result["confidence"])
-        
-        self.status_value.setText(result["status"])
-        
-        # Aqui fazemos a verificação para colorir caso esteja ativo (em vez de usar text puro, podemos usar as variaveis da label)
-        status_raw = "ATIVO" if result["status"] == "Evento pronto" else "AGUARDANDO" 
-        # A API de estilos deve lidar melhor com o status retornado puro
-        self.status_value.setStyleSheet(get_status_label_style("ATIVO" if result["status"] == "Evento pronto" else "PARADO"))
-        
-        self.cooldown_value.setText(result["cooldown"])
+        gesture = result.get("gesture", "Nenhum")
+        event = result.get("event", "NO_GESTURE")
+        confidence = result.get("confidence", f'{result.get("stable_frames", 0)}/{result.get("required_frames", 5)}')
+        status = result.get("status", "Aguardando gesto...")
+        cooldown = result.get("cooldown", "Pronto")
+
+        triggered = result.get("triggered", False)
+        default_action = result.get("default_action", "-")
+
+        command = default_action if triggered else "-"
+
+        self._update_recognition_panel(
+            gesture=gesture,
+            event=event,
+            command=command,
+            confidence=confidence,
+            status=status,
+            cooldown=cooldown,
+        )
 
     def _set_ui_running_state(self) -> None:
         self.is_running = True
@@ -267,12 +273,13 @@ class MainWindow(QMainWindow):
         self.integration_label.setText("Integração: Apresentações | ATIVO")
         self.btn_iniciar.setEnabled(False)
         self.btn_parar.setEnabled(True)
+        self.btn_simular.setEnabled(False)
 
         self._update_recognition_panel(
-            gesture="Aguardando gesto...",
+            gesture="Aguardando...",
             event="-",
             command="-",
-            confidence="-",
+            confidence="0/5",
             status="Ativo",
             cooldown="Pronto",
         )
@@ -284,6 +291,7 @@ class MainWindow(QMainWindow):
         self.integration_label.setText("Integração: Apresentações | PARADO")
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
+        self.btn_simular.setEnabled(True)
 
         self._set_recognition_idle_state()
 
@@ -294,14 +302,16 @@ class MainWindow(QMainWindow):
         self.integration_label.setText("Integração: Apresentações | ERRO")
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
+        self.btn_simular.setEnabled(True)
 
-        self.status_value.setText("Erro")
-        self.status_value.setStyleSheet(get_status_label_style("ERRO"))
-        self.gesture_value.setText("-")
-        self.event_value.setText("-")
-        self.command_value.setText(message)
-        self.confidence_value.setText("-")
-        self.cooldown_value.setText("-")
+        self._update_recognition_panel(
+            gesture="-",
+            event="-",
+            command=message,
+            confidence="-",
+            status="Erro",
+            cooldown="-",
+        )
 
     def _update_recognition_panel(self, gesture: str, event: str, command: str, confidence: str, status: str, cooldown: str):
         self.gesture_value.setText(gesture)
@@ -315,7 +325,7 @@ class MainWindow(QMainWindow):
         self.cooldown_value.setText(cooldown)
 
     def _set_recognition_idle_state(self):
-        self._update_recognition_panel("-", "-", "-", "-", "PARADO", "-")
+        self._update_recognition_panel("-", "-", "-", "-", "Parado", "-")
 
     def _simulate_gesture(self):
         if not self.is_running:
