@@ -36,6 +36,12 @@ DEFAULT_INTEGRATIONS = {
                 "description": "Slide anterior"
             },
             {
+                "gesture": "Apontar direita",
+                "event": "GESTURE_POINT_RIGHT",
+                "command": "Right Arrow",
+                "description": "Avançar slide"
+            },
+            {
                 "gesture": "Polegar cima",
                 "event": "GESTURE_THUMB_UP",
                 "command": "Page Down",
@@ -76,6 +82,12 @@ DEFAULT_INTEGRATIONS = {
                 "event": "GESTURE_SWIPE_LEFT",
                 "command": "PREVIOUS_TRACK",
                 "description": "Faixa anterior"
+            },
+            {
+                "gesture": "Apontar direita",
+                "event": "GESTURE_POINT_RIGHT",
+                "command": "NEXT_TRACK",
+                "description": "Próxima faixa"
             },
             {
                 "gesture": "Polegar cima",
