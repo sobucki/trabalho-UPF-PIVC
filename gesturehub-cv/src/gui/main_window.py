@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import cv2
 from PySide6.QtWidgets import (
@@ -7,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 
 from .processing_view import ProcessingView
-from .command_settings_dialog import CommandSettingsDialog, DEFAULT_INTEGRATIONS
+from .command_settings_dialog import CommandSettingsDialog
 from .styles import (
     get_recognition_title_style,
     get_recognition_value_style,
@@ -15,6 +17,10 @@ from .styles import (
 )
 from src.vision.gesture_pipeline import GesturePipeline
 from src.gui.image_utils import cv_frame_to_qpixmap
+
+from src.integrations.default_configs import DEFAULT_INTEGRATIONS
+from src.integrations.command_mapper import CommandMapper
+from src.integrations.command_executor import CommandExecutor
 
 
 class MainWindow(QMainWindow):
@@ -29,7 +35,9 @@ class MainWindow(QMainWindow):
         self.main_layout = QVBoxLayout(self.central_widget)
         
         self.is_running = False
-        self.integrations = copy.deepcopy(DEFAULT_INTEGRATIONS)
+        
+        self._command_mapper = CommandMapper(DEFAULT_INTEGRATIONS, active_integration_id="presentations")
+        self._command_executor = CommandExecutor()
         
         self._capture = None
         self._camera_timer = QTimer(self)
@@ -211,8 +219,15 @@ class MainWindow(QMainWindow):
 
         self._timestamp_ms += 33
 
+        execution_result = None
+
+        if result.get("triggered") and result.get("event") != "NO_GESTURE":
+            event_name = result.get("event")
+            command_config = self._command_mapper.get_command_for_event(event_name)
+            execution_result = self._command_executor.execute(command_config)
+
         self._update_processing_view(result)
-        self._update_recognition_panel_from_result(result)
+        self._update_recognition_panel_from_result(result, execution_result)
 
     def _update_processing_view(self, result: dict) -> None:
         current_mode = self.processing_view.current_mode
@@ -245,17 +260,18 @@ class MainWindow(QMainWindow):
             pixmap = cv_frame_to_qpixmap(frame)
             self.processing_view.update_frame(mode, pixmap)
 
-    def _update_recognition_panel_from_result(self, result: dict) -> None:
+    def _update_recognition_panel_from_result(self, result: dict, execution_result: dict | None = None) -> None:
         gesture = result.get("gesture", "Nenhum")
         event = result.get("event", "NO_GESTURE")
         confidence = result.get("confidence", f'{result.get("stable_frames", 0)}/{result.get("required_frames", 5)}')
-        status = result.get("status", "Aguardando gesto...")
         cooldown = result.get("cooldown", "Pronto")
 
-        triggered = result.get("triggered", False)
-        default_action = result.get("default_action", "-")
-
-        command = default_action if triggered else "-"
+        if execution_result is not None:
+            command = execution_result["command"] if execution_result.get("executed") else "-"
+            status = execution_result.get("message", "-")
+        else:
+            command = "-"
+            status = result.get("status", "-")
 
         self._update_recognition_panel(
             gesture=gesture,
@@ -320,8 +336,17 @@ class MainWindow(QMainWindow):
         self.confidence_value.setText(confidence)
         
         self.status_value.setText(status)
-        self.status_value.setStyleSheet(get_status_label_style(status))
         
+        # Puxa o status cru e exibe visualmente usando dicionario de cores do styles (se ele existir)
+        # O _format_status_for_panel idealmente daria as strings corretas, mas passamos a do ML direto
+        # O style map se ajeita usando upper, entao vamos apenas enviar
+        status_key = status.upper().replace(" ", "_")
+        # Mas para garantir, voltamos pro status 'ATIVO', 'PARADO', 'ERRO' pros rotulos estaticos da UI se não achou match visual no styles.
+        if "PRONTO" in status_key or "SUCESSO" in status_key:
+            self.status_value.setStyleSheet(get_status_label_style("ATIVO"))
+        else:
+            self.status_value.setStyleSheet(get_status_label_style(status_key))
+            
         self.cooldown_value.setText(cooldown)
 
     def _set_recognition_idle_state(self):
@@ -344,9 +369,10 @@ class MainWindow(QMainWindow):
         )
 
     def _open_command_settings(self):
-        dialog = CommandSettingsDialog(self)
+        dialog = CommandSettingsDialog(self, integrations=self._command_mapper.integrations)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.integrations = dialog.get_integrations()
+            updated_integrations = dialog.get_integrations()
+            self._command_mapper.update_integrations(updated_integrations)
 
     def _show_feature_not_available(self):
         QMessageBox.information(self, "Aviso", "Esta funcionalidade será implementada em uma etapa futura.")
