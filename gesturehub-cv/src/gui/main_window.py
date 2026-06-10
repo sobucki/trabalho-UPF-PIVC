@@ -1,9 +1,11 @@
 import copy
+import cv2
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QPushButton, QGroupBox, QMessageBox, QDialog
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
+
 from .processing_view import ProcessingView
 from .command_settings_dialog import CommandSettingsDialog, DEFAULT_INTEGRATIONS
 from .styles import (
@@ -11,6 +13,9 @@ from .styles import (
     get_recognition_value_style,
     get_status_label_style
 )
+from src.vision.gesture_pipeline import GesturePipeline
+from src.gui.image_utils import cv_frame_to_qpixmap
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -25,6 +30,14 @@ class MainWindow(QMainWindow):
         
         self.is_running = False
         self.integrations = copy.deepcopy(DEFAULT_INTEGRATIONS)
+        
+        self._capture = None
+        self._camera_timer = QTimer(self)
+        self._camera_timer.timeout.connect(self._process_camera_frame)
+        
+        self._gesture_pipeline = None
+        self._timestamp_ms = 0
+        self._camera_index = 0
         
         self._setup_ui()
         
@@ -52,11 +65,9 @@ class MainWindow(QMainWindow):
     def _create_content(self):
         content_layout = QHBoxLayout()
         
-        # Area de visualização do processamento
         self.processing_view = ProcessingView()
         content_layout.addWidget(self.processing_view, stretch=3)
         
-        # Painel de Reconhecimento
         self._create_recognition_panel(content_layout)
         
         self.main_layout.addLayout(content_layout)
@@ -127,20 +138,159 @@ class MainWindow(QMainWindow):
         
         self.main_layout.addLayout(footer_layout)
 
-    def _set_running_state(self, running: bool):
-        self.is_running = running
-        self.processing_view.set_running(running)
-        
+    def _set_running_state(self, running: bool) -> None:
         if running:
-            self.integration_label.setText("Integração: Apresentações | ATIVO")
-            self.btn_iniciar.setEnabled(False)
-            self.btn_parar.setEnabled(True)
-            self._set_recognition_running_state()
+            self._start_camera()
         else:
-            self.integration_label.setText("Integração: Apresentações | PARADO")
-            self.btn_iniciar.setEnabled(True)
-            self.btn_parar.setEnabled(False)
-            self._set_recognition_idle_state()
+            self._stop_camera()
+
+    def _start_camera(self) -> None:
+        if self.is_running:
+            return
+
+        self._capture = cv2.VideoCapture(self._camera_index)
+
+        if not self._capture.isOpened():
+            self._capture.release()
+            self._capture = None
+            self._set_error_state("Erro ao acessar câmera.")
+            QMessageBox.critical(self, "Erro de câmera", "Não foi possível abrir a webcam.")
+            return
+
+        try:
+            self._gesture_pipeline = GesturePipeline()
+            self._gesture_pipeline.start()
+        except Exception as exc:
+            self._release_camera()
+            self._set_error_state(str(exc))
+            QMessageBox.critical(self, "Erro ao iniciar reconhecimento", str(exc))
+            return
+
+        self._timestamp_ms = 0
+        self._camera_timer.start(30)
+        self._set_ui_running_state()
+
+    def _stop_camera(self) -> None:
+        if self._camera_timer.isActive():
+            self._camera_timer.stop()
+
+        self._release_camera()
+        self._close_pipeline()
+        self._set_ui_stopped_state()
+
+    def _release_camera(self) -> None:
+        if self._capture is not None:
+            self._capture.release()
+            self._capture = None
+
+    def _close_pipeline(self) -> None:
+        if self._gesture_pipeline is not None:
+            self._gesture_pipeline.close()
+            self._gesture_pipeline = None
+
+    def _process_camera_frame(self) -> None:
+        if self._capture is None or self._gesture_pipeline is None:
+            return
+
+        ret, frame = self._capture.read()
+
+        if not ret:
+            self._set_error_state("Falha ao capturar frame da câmera.")
+            self._stop_camera()
+            return
+
+        frame = cv2.flip(frame, 1)
+
+        try:
+            result = self._gesture_pipeline.process_frame(frame, self._timestamp_ms)
+        except Exception as exc:
+            self._set_error_state(str(exc))
+            self._stop_camera()
+            QMessageBox.critical(self, "Erro no processamento", str(exc))
+            return
+
+        self._timestamp_ms += 33
+
+        self._update_processing_view(result)
+        self._update_recognition_panel_from_result(result)
+
+    def _update_processing_view(self, result: dict) -> None:
+        # Pega o frame processado conforme o modo da processing view
+        current_mode = self.processing_view.current_mode
+        
+        # Mapeamento dinâmico para evitar mostrar sempre a mesma imagem (se futuro permitirmos mais saídas do pipeline)
+        if current_mode == "Original":
+            frame_to_show = result["original_frame"]
+        else:
+            frame_to_show = result["result_frame"]
+            
+        pixmap = cv_frame_to_qpixmap(frame_to_show)
+        self.processing_view.update_frame(current_mode, pixmap)
+        
+        # Se for modo Grade, alimentamos ambas forçadamente para atualizar as diferentes views (temporário até gerar hsv)
+        if current_mode == "Grade":
+            self.processing_view.update_frame("Original", cv_frame_to_qpixmap(result["original_frame"]))
+            self.processing_view.update_frame("Resultado final", pixmap)
+            self.processing_view.update_frame("Contornos", pixmap)
+            self.processing_view.update_frame("Máscara / Threshold", pixmap)
+
+    def _update_recognition_panel_from_result(self, result: dict) -> None:
+        self.gesture_value.setText(result["gesture"])
+        self.event_value.setText(result["event"])
+        self.command_value.setText(result["default_action"] if result["triggered"] else "-")
+        self.confidence_value.setText(result["confidence"])
+        
+        self.status_value.setText(result["status"])
+        
+        # Aqui fazemos a verificação para colorir caso esteja ativo (em vez de usar text puro, podemos usar as variaveis da label)
+        status_raw = "ATIVO" if result["status"] == "Evento pronto" else "AGUARDANDO" 
+        # A API de estilos deve lidar melhor com o status retornado puro
+        self.status_value.setStyleSheet(get_status_label_style("ATIVO" if result["status"] == "Evento pronto" else "PARADO"))
+        
+        self.cooldown_value.setText(result["cooldown"])
+
+    def _set_ui_running_state(self) -> None:
+        self.is_running = True
+        self.processing_view.set_running(True)
+
+        self.integration_label.setText("Integração: Apresentações | ATIVO")
+        self.btn_iniciar.setEnabled(False)
+        self.btn_parar.setEnabled(True)
+
+        self._update_recognition_panel(
+            gesture="Aguardando gesto...",
+            event="-",
+            command="-",
+            confidence="-",
+            status="Ativo",
+            cooldown="Pronto",
+        )
+
+    def _set_ui_stopped_state(self) -> None:
+        self.is_running = False
+        self.processing_view.set_running(False)
+
+        self.integration_label.setText("Integração: Apresentações | PARADO")
+        self.btn_iniciar.setEnabled(True)
+        self.btn_parar.setEnabled(False)
+
+        self._set_recognition_idle_state()
+
+    def _set_error_state(self, message: str) -> None:
+        self.is_running = False
+        self.processing_view.set_running(False)
+        
+        self.integration_label.setText("Integração: Apresentações | ERRO")
+        self.btn_iniciar.setEnabled(True)
+        self.btn_parar.setEnabled(False)
+
+        self.status_value.setText("Erro")
+        self.status_value.setStyleSheet(get_status_label_style("ERRO"))
+        self.gesture_value.setText("-")
+        self.event_value.setText("-")
+        self.command_value.setText(message)
+        self.confidence_value.setText("-")
+        self.cooldown_value.setText("-")
 
     def _update_recognition_panel(self, gesture: str, event: str, command: str, confidence: str, status: str, cooldown: str):
         self.gesture_value.setText(gesture)
@@ -156,10 +306,13 @@ class MainWindow(QMainWindow):
     def _set_recognition_idle_state(self):
         self._update_recognition_panel("-", "-", "-", "-", "PARADO", "-")
 
-    def _set_recognition_running_state(self):
-        self._update_recognition_panel("Aguardando gesto...", "-", "-", "-", "ATIVO", "Pronto")
-
-    def _set_recognition_simulated_gesture(self):
+    def _simulate_gesture(self):
+        if not self.is_running:
+            self.status_value.setText("AGUARDANDO")
+            self.status_value.setStyleSheet(get_status_label_style("AGUARDANDO"))
+            QMessageBox.information(self, "Aviso", "Inicie a aplicação primeiro para simular gestos.")
+            return
+            
         self._update_recognition_panel(
             "Swipe direita", 
             "GESTURE_SWIPE_RIGHT", 
@@ -169,20 +322,15 @@ class MainWindow(QMainWindow):
             "0.7s"
         )
 
-    def _simulate_gesture(self):
-        if not self.is_running:
-            self.status_value.setText("AGUARDANDO")
-            self.status_value.setStyleSheet(get_status_label_style("AGUARDANDO"))
-            QMessageBox.information(self, "Aviso", "Inicie a aplicação primeiro para simular gestos.")
-            return
-            
-        self._set_recognition_simulated_gesture()
-
     def _open_command_settings(self):
         dialog = CommandSettingsDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.integrations = dialog.get_integrations()
 
     def _show_feature_not_available(self):
-        # TODO: Implementar carregamento real de imagem e vídeo em etapa futura
         QMessageBox.information(self, "Aviso", "Esta funcionalidade será implementada em uma etapa futura.")
+        
+    def closeEvent(self, event):
+        """Garante a liberacao segura dos recursos C/C++ ao fechar o form"""
+        self._stop_camera()
+        super().closeEvent(event)
