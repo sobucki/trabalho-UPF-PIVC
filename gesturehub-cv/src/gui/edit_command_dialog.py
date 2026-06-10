@@ -2,7 +2,6 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
     QLineEdit, QComboBox, QPushButton, QFormLayout
 )
-from PySide6.QtCore import Qt
 
 class EditCommandDialog(QDialog):
     def __init__(self, command_data: dict, command_type: str, parent=None):

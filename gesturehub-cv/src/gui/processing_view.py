@@ -2,8 +2,14 @@ from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QGridLayout, 
     QLabel, QButtonGroup, QPushButton, QWidget, QSizePolicy
 )
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
+
+from .styles import (
+    get_processing_view_style, get_processing_card_style,
+    get_processing_title_style, get_processing_description_style,
+    get_roi_style, get_roi_label_style
+)
 
 PROCESSING_MODES = [
     "Original",
@@ -46,7 +52,7 @@ class ProcessingView(QFrame):
         
         # Header / Title
         title_label = QLabel("Processamento OpenCV")
-        title_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #dddddd;")
+        title_label.setStyleSheet(get_processing_title_style())
         self.main_layout.addWidget(title_label)
         
         # Mode Controls
@@ -76,7 +82,6 @@ class ProcessingView(QFrame):
             self.btn_group.addButton(btn)
             controls_layout.addWidget(btn)
             
-            # Connect the signal with default arguments correctly to avoid late binding issues
             btn.toggled.connect(lambda checked, m=mode: self.set_mode(m) if checked else None)
             
         controls_layout.addStretch()
@@ -115,18 +120,18 @@ class ProcessingView(QFrame):
         self._clear_view()
         
         self.single_view_frame = QFrame()
-        self.single_view_frame.setStyleSheet("background-color: #1e1e1e; border-radius: 5px;")
+        self.single_view_frame.setStyleSheet(get_processing_view_style())
         
         layout = QVBoxLayout(self.single_view_frame)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         self.single_view_title = QLabel(f"Modo de visualização: {mode}")
-        self.single_view_title.setStyleSheet("color: white; font-size: 14px; padding: 5px;")
+        self.single_view_title.setStyleSheet(get_processing_title_style())
         self.single_view_title.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         
         description_text = self._get_mode_description(mode)
         desc_label = QLabel(description_text)
-        desc_label.setStyleSheet("color: #888888; font-size: 12px;")
+        desc_label.setStyleSheet(get_processing_description_style())
         desc_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         
         header_layout = QVBoxLayout()
@@ -139,21 +144,15 @@ class ProcessingView(QFrame):
         
         self.single_view_label = QLabel()
         self.single_view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.single_view_label.setStyleSheet("color: #aaaaaa; font-size: 20px;")
         layout.addWidget(self.single_view_label)
         
         # Setup ROI frame
         self.roi_frame = QFrame()
         self.roi_frame.setFixedSize(200, 200)
-        self.roi_frame.setStyleSheet("""
-            QFrame {
-                border: 2px dashed #4caf50;
-                background-color: transparent;
-            }
-        """)
+        self.roi_frame.setStyleSheet(get_roi_style())
         roi_layout = QVBoxLayout(self.roi_frame)
         roi_label = QLabel("Área de controle da mão")
-        roi_label.setStyleSheet("color: #4caf50; border: none; font-size: 10px;")
+        roi_label.setStyleSheet(get_roi_label_style())
         roi_label.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
         roi_layout.addWidget(roi_label)
         
@@ -194,21 +193,20 @@ class ProcessingView(QFrame):
 
     def _create_processing_card(self, title: str, description: str):
         card = QFrame()
-        card.setStyleSheet("background-color: #1e1e1e; border: 1px solid #333333; border-radius: 5px;")
+        card.setStyleSheet(get_processing_card_style())
         card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         layout = QVBoxLayout(card)
         layout.setContentsMargins(10, 10, 10, 10)
         
         title_label = QLabel(title)
-        title_label.setStyleSheet("color: white; font-weight: bold; border: none;")
+        title_label.setStyleSheet(get_processing_title_style())
         
         desc_label = QLabel(description)
-        desc_label.setStyleSheet("color: #888888; font-size: 10px; border: none;")
+        desc_label.setStyleSheet(get_processing_description_style())
         
         img_label = QLabel()
         img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        img_label.setStyleSheet("color: #aaaaaa; border: none;")
         
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
@@ -234,9 +232,13 @@ class ProcessingView(QFrame):
         
         if self.current_mode == "Grade":
             for label in self.grid_cards.values():
+                if not self.is_running:
+                    label.clear()
                 label.setText(text)
         else:
             if self.single_view_label:
+                if not self.is_running:
+                    self.single_view_label.clear()
                 self.single_view_label.setText(text)
                 
         # ROI visibility logic
@@ -246,13 +248,22 @@ class ProcessingView(QFrame):
             elif self.current_mode in ["Original", "Resultado final"]:
                 self.roi_frame.setVisible(True)
 
-    def update_frame(self, mode: str, pixmap: QPixmap):
-        """
-        Método preparado para receber frames processados do OpenCV no futuro.
-        """
+    def _set_label_pixmap(self, label: QLabel, pixmap: QPixmap) -> None:
+        label.clear() # limpa o texto
+        scaled_pixmap = pixmap.scaled(
+            label.size(), 
+            Qt.AspectRatioMode.KeepAspectRatio, 
+            Qt.TransformationMode.SmoothTransformation
+        )
+        label.setPixmap(scaled_pixmap)
+
+    def update_frame(self, mode: str, pixmap: QPixmap) -> None:
+        if pixmap is None or pixmap.isNull():
+            return
+            
         if self.current_mode == "Grade":
             if mode in self.grid_cards:
-                self.grid_cards[mode].setPixmap(pixmap)
+                self._set_label_pixmap(self.grid_cards[mode], pixmap)
         else:
             if self.current_mode == mode and self.single_view_label:
-                self.single_view_label.setPixmap(pixmap)
+                self._set_label_pixmap(self.single_view_label, pixmap)

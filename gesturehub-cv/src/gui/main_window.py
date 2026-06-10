@@ -1,10 +1,16 @@
+import copy
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QPushButton, QFrame, QGroupBox, QGridLayout, QMessageBox
+    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog
 )
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt
 from .processing_view import ProcessingView
-from .command_settings_dialog import CommandSettingsDialog
+from .command_settings_dialog import CommandSettingsDialog, DEFAULT_INTEGRATIONS
+from .styles import (
+    get_recognition_title_style,
+    get_recognition_value_style,
+    get_status_label_style
+)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -18,6 +24,7 @@ class MainWindow(QMainWindow):
         self.main_layout = QVBoxLayout(self.central_widget)
         
         self.is_running = False
+        self.integrations = copy.deepcopy(DEFAULT_INTEGRATIONS)
         
         self._setup_ui()
         
@@ -59,11 +66,12 @@ class MainWindow(QMainWindow):
         panel_layout = QVBoxLayout(self.recognition_group)
         panel_layout.setSpacing(15)
         
-        self.gesto_value = self._create_recognition_field(panel_layout, "Gesto detectado", "-")
-        self.evento_value = self._create_recognition_field(panel_layout, "Evento gerado", "-")
-        self.comando_value = self._create_recognition_field(panel_layout, "Comando executado", "-")
-        self.confianca_value = self._create_recognition_field(panel_layout, "Confiança", "-")
-        self.status_value = self._create_recognition_field(panel_layout, "Status", "Parado")
+        self.gesture_value = self._create_recognition_field(panel_layout, "Gesto detectado", "-")
+        self.event_value = self._create_recognition_field(panel_layout, "Evento gerado", "-")
+        self.command_value = self._create_recognition_field(panel_layout, "Comando executado", "-")
+        self.confidence_value = self._create_recognition_field(panel_layout, "Confiança", "-")
+        self.status_value = self._create_recognition_field(panel_layout, "Status", "PARADO")
+        self.status_value.setStyleSheet(get_status_label_style("PARADO"))
         self.cooldown_value = self._create_recognition_field(panel_layout, "Cooldown", "-")
         
         panel_layout.addStretch()
@@ -76,10 +84,10 @@ class MainWindow(QMainWindow):
         layout.setSpacing(2)
         
         title_label = QLabel(title)
-        title_label.setStyleSheet("color: gray; font-size: 12px;")
+        title_label.setStyleSheet(get_recognition_title_style())
         
         value_label = QLabel(default_text)
-        value_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        value_label.setStyleSheet(get_recognition_value_style())
         
         layout.addWidget(title_label)
         layout.addWidget(value_label)
@@ -102,8 +110,12 @@ class MainWindow(QMainWindow):
         
         self.btn_configurar = QPushButton("Configurar comandos")
         self.btn_configurar.clicked.connect(self._open_command_settings)
+        
         self.btn_carregar_img = QPushButton("Carregar imagem")
+        self.btn_carregar_img.clicked.connect(self._show_feature_not_available)
+        
         self.btn_carregar_vid = QPushButton("Carregar vídeo")
+        self.btn_carregar_vid.clicked.connect(self._show_feature_not_available)
         
         footer_layout.addWidget(self.btn_iniciar)
         footer_layout.addWidget(self.btn_parar)
@@ -123,40 +135,54 @@ class MainWindow(QMainWindow):
             self.integration_label.setText("Integração: Apresentações | ATIVO")
             self.btn_iniciar.setEnabled(False)
             self.btn_parar.setEnabled(True)
-            
-            self.gesto_value.setText("Aguardando gesto...")
-            self.evento_value.setText("-")
-            self.comando_value.setText("-")
-            self.confianca_value.setText("-")
-            self.status_value.setText("Ativo")
-            self.cooldown_value.setText("Pronto")
+            self._set_recognition_running_state()
         else:
             self.integration_label.setText("Integração: Apresentações | PARADO")
             self.btn_iniciar.setEnabled(True)
             self.btn_parar.setEnabled(False)
-            
-            self._reset_recognition_state()
+            self._set_recognition_idle_state()
 
-    def _reset_recognition_state(self):
-        self.gesto_value.setText("-")
-        self.evento_value.setText("-")
-        self.comando_value.setText("-")
-        self.confianca_value.setText("-")
-        self.status_value.setText("Parado")
-        self.cooldown_value.setText("-")
+    def _update_recognition_panel(self, gesture: str, event: str, command: str, confidence: str, status: str, cooldown: str):
+        self.gesture_value.setText(gesture)
+        self.event_value.setText(event)
+        self.command_value.setText(command)
+        self.confidence_value.setText(confidence)
+        
+        self.status_value.setText(status)
+        self.status_value.setStyleSheet(get_status_label_style(status))
+        
+        self.cooldown_value.setText(cooldown)
+
+    def _set_recognition_idle_state(self):
+        self._update_recognition_panel("-", "-", "-", "-", "PARADO", "-")
+
+    def _set_recognition_running_state(self):
+        self._update_recognition_panel("Aguardando gesto...", "-", "-", "-", "ATIVO", "Pronto")
+
+    def _set_recognition_simulated_gesture(self):
+        self._update_recognition_panel(
+            "Swipe direita", 
+            "GESTURE_SWIPE_RIGHT", 
+            "Right Arrow", 
+            "92%", 
+            "COMANDO EXECUTADO", 
+            "0.7s"
+        )
 
     def _simulate_gesture(self):
         if not self.is_running:
+            self.status_value.setText("AGUARDANDO")
+            self.status_value.setStyleSheet(get_status_label_style("AGUARDANDO"))
             QMessageBox.information(self, "Aviso", "Inicie a aplicação primeiro para simular gestos.")
             return
             
-        self.gesto_value.setText("Swipe direita")
-        self.evento_value.setText("GESTURE_SWIPE_RIGHT")
-        self.comando_value.setText("Right Arrow")
-        self.confianca_value.setText("92%")
-        self.status_value.setText("Comando executado")
-        self.cooldown_value.setText("0.7s")
+        self._set_recognition_simulated_gesture()
 
     def _open_command_settings(self):
         dialog = CommandSettingsDialog(self)
-        dialog.exec()
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.integrations = dialog.get_integrations()
+
+    def _show_feature_not_available(self):
+        # TODO: Implementar carregamento real de imagem e vídeo em etapa futura
+        QMessageBox.information(self, "Aviso", "Esta funcionalidade será implementada em uma etapa futura.")

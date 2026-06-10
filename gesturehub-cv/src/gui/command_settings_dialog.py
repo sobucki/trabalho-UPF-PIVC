@@ -4,7 +4,6 @@ from PySide6.QtWidgets import (
     QComboBox, QPushButton, QTableWidget, QTableWidgetItem,
     QAbstractItemView, QMessageBox, QHeaderView
 )
-from PySide6.QtCore import Qt
 from .edit_command_dialog import EditCommandDialog
 
 DEFAULT_INTEGRATIONS = {
@@ -50,7 +49,7 @@ DEFAULT_INTEGRATIONS = {
             }
         ]
     },
-    "spotify": {
+    "media": {
         "name": "Spotify / Mídia",
         "command_type": "media_key",
         "commands": [
@@ -159,7 +158,7 @@ class CommandSettingsDialog(QDialog):
         self.btn_edit = QPushButton("Editar selecionado")
         self.btn_edit.clicked.connect(self._edit_selected_command)
         
-        self.btn_save = QPushButton("Salvar")
+        self.btn_save = QPushButton("Confirmar")
         self.btn_save.clicked.connect(self.accept)
         
         self.btn_restore = QPushButton("Restaurar padrão")
@@ -224,3 +223,6 @@ class CommandSettingsDialog(QDialog):
             default_integration = copy.deepcopy(DEFAULT_INTEGRATIONS[self.current_integration_id])
             self.integrations[self.current_integration_id] = default_integration
             self._load_integration_commands()
+
+    def get_integrations(self) -> dict:
+        return self.integrations
