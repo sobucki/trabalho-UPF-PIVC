@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QLabel, QButtonGroup, QPushButton, QWidget, QSizePolicy
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QPainter
 
 from .styles import (
     get_processing_view_style, get_processing_card_style,
@@ -19,6 +19,46 @@ PROCESSING_MODES = [
     "Resultado final",
     "Grade"
 ]
+
+class FrameLabel(QLabel):
+    """
+    Subclasse de QLabel que pinta o pixmap manualmente no paintEvent.
+    Isso evita o clássico feedback loop do Qt onde a imagem escalada altera o sizeHint 
+    da QLabel, fazendo o layout esticar infinitamente.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap = None
+        self.setMinimumSize(1, 1)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+    def setPixmap(self, pixmap: QPixmap):
+        self._pixmap = pixmap
+        self.update()
+        
+    def pixmap(self):
+        return self._pixmap
+        
+    def clear(self):
+        self._pixmap = None
+        super().clear()
+        self.update()
+        
+    def paintEvent(self, event):
+        if not self._pixmap or self._pixmap.isNull():
+            super().paintEvent(event)
+            return
+            
+        painter = QPainter(self)
+        scaled_pixmap = self._pixmap.scaled(
+            self.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        x = (self.width() - scaled_pixmap.width()) // 2
+        y = (self.height() - scaled_pixmap.height()) // 2
+        painter.drawPixmap(x, y, scaled_pixmap)
 
 class ProcessingView(QFrame):
     def __init__(self, parent=None):
@@ -148,13 +188,8 @@ class ProcessingView(QFrame):
         layout.addLayout(header_layout)
         layout.addStretch()
         
-        self.single_view_label = QLabel()
-        self.single_view_label.setMinimumSize(1, 1)
-        self.single_view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.single_view_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        layout.addWidget(self.single_view_label)
-        
-        layout.addStretch()
+        self.single_view_label = FrameLabel()
+        layout.addWidget(self.single_view_label, stretch=1)
         
         self.view_layout.addWidget(self.single_view_frame)
         self._update_placeholders()
@@ -196,16 +231,11 @@ class ProcessingView(QFrame):
         desc_label = QLabel(description)
         desc_label.setStyleSheet(get_processing_description_style())
         
-        img_label = QLabel()
-        img_label.setMinimumSize(1, 1)
-        img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        img_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        img_label = FrameLabel()
         
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
-        layout.addStretch()
         layout.addWidget(img_label, stretch=1)
-        layout.addStretch()
         
         return card, img_label
 
@@ -236,17 +266,12 @@ class ProcessingView(QFrame):
                 if not self.single_view_label.pixmap() or self.single_view_label.pixmap().isNull():
                     self.single_view_label.setText(text)
 
-    def _set_label_pixmap(self, label: QLabel, pixmap: QPixmap) -> None:
+    def _set_label_pixmap(self, label: FrameLabel, pixmap: QPixmap) -> None:
         if pixmap.isNull():
             return
             
         label.clear() # limpa o texto do placeholder
-        scaled_pixmap = pixmap.scaled(
-            label.size(), 
-            Qt.AspectRatioMode.KeepAspectRatio, 
-            Qt.TransformationMode.SmoothTransformation
-        )
-        label.setPixmap(scaled_pixmap)
+        label.setPixmap(pixmap) # O FrameLabel gerencia o scale internamente
 
     def update_frame(self, mode: str, pixmap: QPixmap) -> None:
         """
