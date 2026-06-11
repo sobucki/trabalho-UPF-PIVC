@@ -42,7 +42,6 @@ class ProcessingView(QFrame):
         self.single_view_frame = None
         self.single_view_label = None
         self.single_view_title = None
-        self.roi_frame = None
         
         # Grid View widgets
         self.grid_cards = {}
@@ -121,7 +120,6 @@ class ProcessingView(QFrame):
         self.single_view_frame = None
         self.single_view_label = None
         self.single_view_title = None
-        self.roi_frame = None
         self.grid_cards.clear()
 
     def show_single_view(self, mode: str):
@@ -151,29 +149,13 @@ class ProcessingView(QFrame):
         layout.addStretch()
         
         self.single_view_label = QLabel()
+        self.single_view_label.setMinimumSize(1, 1)
         self.single_view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.single_view_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout.addWidget(self.single_view_label)
         
-        # Setup ROI frame
-        self.roi_frame = QFrame()
-        self.roi_frame.setFixedSize(200, 200)
-        self.roi_frame.setStyleSheet(get_roi_style())
-        roi_layout = QVBoxLayout(self.roi_frame)
-        roi_label = QLabel("Área de controle da mão")
-        roi_label.setStyleSheet(get_roi_label_style())
-        roi_label.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
-        roi_layout.addWidget(roi_label)
-        
-        layout.addWidget(self.roi_frame, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addStretch()
         
-        # Only show ROI on specific modes
-        if mode in ["Original", "Resultado final"]:
-            self.roi_frame.setVisible(True)
-        else:
-            self.roi_frame.setVisible(False)
-            
         self.view_layout.addWidget(self.single_view_frame)
         self._update_placeholders()
 
@@ -215,6 +197,7 @@ class ProcessingView(QFrame):
         desc_label.setStyleSheet(get_processing_description_style())
         
         img_label = QLabel()
+        img_label.setMinimumSize(1, 1)
         img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         img_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
@@ -252,13 +235,6 @@ class ProcessingView(QFrame):
                     self.single_view_label.clear()
                 if not self.single_view_label.pixmap() or self.single_view_label.pixmap().isNull():
                     self.single_view_label.setText(text)
-                
-        # ROI visibility logic
-        if self.roi_frame:
-            if not self.is_running:
-                self.roi_frame.setVisible(False)
-            elif self.current_mode in ["Original", "Resultado final"]:
-                self.roi_frame.setVisible(True)
 
     def _set_label_pixmap(self, label: QLabel, pixmap: QPixmap) -> None:
         if pixmap.isNull():
