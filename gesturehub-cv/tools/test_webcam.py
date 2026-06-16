@@ -6,6 +6,7 @@ Uso:
     python tools/test_webcam.py
 """
 import sys
+import time
 from pathlib import Path
 
 # Permite importar src/ a partir da raiz do projeto
@@ -18,11 +19,15 @@ import numpy as np
 
 from src.config.paths import HAND_LANDMARKER_MODEL_PATH, GESTURE_SVM_MODEL_PATH
 from src.vision.landmark_utils import normalize_landmarks, HAND_CONNECTIONS
-from src.vision.gesture_labels import get_gesture_name, GESTURE_LABELS
+from src.vision.gesture_labels import get_gesture_name, GESTURE_LABELS, SWIPE_INFO
+from src.vision.swipe_detector import SwipeDetector
 
 CONFIDENCE_THRESHOLD = 0.6
 
 GESTURE_NAMES = {info["event"]: info["gesture"] for info in GESTURE_LABELS.values()}
+
+# Tempo (segundos) que o texto de swipe detectado fica visível na tela
+SWIPE_DISPLAY_DURATION_S = 1.0
 
 
 def load_detector():
@@ -57,6 +62,7 @@ def main():
         return
 
     svm = cv2.ml.SVM_load(str(GESTURE_SVM_MODEL_PATH))
+    swipe_detector = SwipeDetector()
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
@@ -65,6 +71,8 @@ def main():
 
     print("Pressione [q] para sair.")
     timestamp_ms = 0
+    last_swipe_text = ""
+    last_swipe_time = 0.0
 
     with load_detector() as detector:
         while True:
@@ -81,9 +89,9 @@ def main():
 
             gesture_text = "Nenhum gesto"
             color = (100, 100, 100)
+            landmarks = result.hand_landmarks[0] if result.hand_landmarks else None
 
-            if result.hand_landmarks:
-                landmarks = result.hand_landmarks[0]
+            if landmarks is not None:
                 draw_landmarks(frame, landmarks)
 
                 features = normalize_landmarks(landmarks)
@@ -94,10 +102,20 @@ def main():
                 gesture_text = get_gesture_name(label)
                 color = (0, 255, 0)
 
+            swipe_event = swipe_detector.update(landmarks)
+            if swipe_event is not None:
+                last_swipe_text = SWIPE_INFO[swipe_event]["gesture"]
+                last_swipe_time = time.monotonic()
+
             cv2.putText(frame, "GestureHub - Teste do Modelo", (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
             cv2.putText(frame, f"Gesto: {gesture_text}", (10, 70),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+            if last_swipe_text and (time.monotonic() - last_swipe_time) < SWIPE_DISPLAY_DURATION_S:
+                cv2.putText(frame, f"Swipe: {last_swipe_text}", (10, 110),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 165, 255), 2)
+
             cv2.putText(frame, "[q] Sair", (10, h - 15),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
 

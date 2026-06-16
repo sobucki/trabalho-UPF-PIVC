@@ -21,6 +21,8 @@ GESTURE_PEACE        = "GESTURE_PEACE"
 GESTURE_ROCK         = "GESTURE_ROCK"
 GESTURE_THREE        = "GESTURE_THREE"
 GESTURE_THREE2       = "GESTURE_THREE2"
+GESTURE_SWIPE_LEFT   = "GESTURE_SWIPE_LEFT"
+GESTURE_SWIPE_RIGHT  = "GESTURE_SWIPE_RIGHT"
 NO_GESTURE           = "NO_GESTURE"
 
 
@@ -95,6 +97,21 @@ GESTURE_LABELS: dict[int, GestureInfo] = {
     11: {
         "gesture": "Três dedos (variante)",
         "event": GESTURE_THREE2,
+        "default_action": "Nenhuma ação",
+    },
+}
+
+
+# Gestos dinâmicos (não vêm do SVM, são emitidos pelo SwipeDetector)
+SWIPE_INFO: dict[str, GestureInfo] = {
+    GESTURE_SWIPE_LEFT: {
+        "gesture": "Arrastar para esquerda",
+        "event": GESTURE_SWIPE_LEFT,
+        "default_action": "Nenhuma ação",
+    },
+    GESTURE_SWIPE_RIGHT: {
+        "gesture": "Arrastar para direita",
+        "event": GESTURE_SWIPE_RIGHT,
         "default_action": "Nenhuma ação",
     },
 }
