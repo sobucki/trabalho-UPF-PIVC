@@ -13,6 +13,7 @@ from .styles import (
 
 PROCESSING_MODES = [
     "Original",
+    "Pré-processamento",
     "Resultado final",
     "Grade"
 ]
@@ -201,7 +202,8 @@ class ProcessingView(QFrame):
         
         modes_to_show = [
             ("Original", 0, 0),
-            ("Resultado final", 0, 1)
+            ("Pré-processamento", 0, 1),
+            ("Resultado final", 1, 0)
         ]
         
         for mode, row, col in modes_to_show:
@@ -237,6 +239,7 @@ class ProcessingView(QFrame):
     def _get_mode_description(self, mode: str) -> str:
         descriptions = {
             "Original": "Frame original capturado da webcam.",
+            "Pré-processamento": "Ajuste de contraste adaptativo (CLAHE) para baixa iluminação e realce de contornos.",
             "Resultado final": "Frame anotado com landmarks, gesto, evento e status.",
             "Grade": "Comparação simultânea das principais etapas de processamento."
         }
