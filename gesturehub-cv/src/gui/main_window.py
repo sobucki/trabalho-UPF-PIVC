@@ -234,9 +234,6 @@ class MainWindow(QMainWindow):
 
         MODE_TO_FRAME_KEY = {
             "Original": "original_frame",
-            "HSV": "hsv_frame",
-            "Máscara / Threshold": "mask_frame",
-            "Contornos": "contours_frame",
             "Resultado final": "result_frame",
         }
 
@@ -251,8 +248,6 @@ class MainWindow(QMainWindow):
     def _update_processing_grid(self, result: dict) -> None:
         frames = {
             "Original": result["original_frame"],
-            "HSV": result["hsv_frame"],
-            "Contornos": result["contours_frame"],
             "Resultado final": result["result_frame"],
         }
 
