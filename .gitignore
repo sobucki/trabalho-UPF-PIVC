@@ -222,3 +222,7 @@ __marimo__/
 plano-de-trabalho.md
 Trabalho_PIVC_2026_1_Software.pdf
 gesture-hub.md
+
+# Datasets gerados (muito grandes para o GitHub - use convert_hagrid.py para regenerar)
+gesturehub-cv/models/gesture_data_hagrid.csv
+HAgrid/
