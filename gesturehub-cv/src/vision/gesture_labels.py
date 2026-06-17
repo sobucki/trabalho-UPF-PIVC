@@ -118,30 +118,39 @@ SWIPE_INFO: dict[str, GestureInfo] = {
 
 
 def get_gesture_info(label: int | None) -> GestureInfo:
+    """Retorna o dicionário completo das informações do gesto."""
     if label is None:
         return UNKNOWN_GESTURE.copy()
     return GESTURE_LABELS.get(label, UNKNOWN_GESTURE).copy()
 
 
 def get_gesture_name(label: int | None) -> str:
-    return get_gesture_info(label)["gesture"]
+    """Retorna apenas o nome amigável do gesto."""
+    info = get_gesture_info(label)
+    return info["gesture"]
 
 
 def get_event_name(label: int | None) -> str:
-    return get_gesture_info(label)["event"]
+    """Retorna apenas o evento interno associado ao label."""
+    info = get_gesture_info(label)
+    return info["event"]
 
 
 def get_default_action(label: int | None) -> str:
-    return get_gesture_info(label)["default_action"]
+    """Retorna apenas a ação padrão textual associada ao label."""
+    info = get_gesture_info(label)
+    return info["default_action"]
 
 
 def is_known_label(label: int | None) -> bool:
+    """Retorna True se o label existir nos mapeamentos suportados."""
     if label is None:
         return False
     return label in GESTURE_LABELS
 
 
 def list_supported_gestures() -> list[dict]:
+    """Retorna uma lista com todos os gestos suportados e seus metadados."""
     supported = []
     for label, info in GESTURE_LABELS.items():
         item = {"label": label}
