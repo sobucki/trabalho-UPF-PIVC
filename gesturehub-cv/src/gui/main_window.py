@@ -4,7 +4,7 @@ import copy
 import cv2
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog
+    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox
 )
 from PySide6.QtCore import Qt, QTimer
 
@@ -35,6 +35,7 @@ class MainWindow(QMainWindow):
         self.main_layout = QVBoxLayout(self.central_widget)
         
         self.is_running = False
+        self._enhance_low_light_enabled = False
         
         self._command_mapper = CommandMapper(DEFAULT_INTEGRATIONS, active_integration_id="presentations")
         self._command_executor = CommandExecutor()
@@ -92,6 +93,11 @@ class MainWindow(QMainWindow):
         self.status_value = self._create_recognition_field(panel_layout, "Status", "PARADO")
         self.status_value.setStyleSheet(get_status_label_style("PARADO"))
         self.cooldown_value = self._create_recognition_field(panel_layout, "Cooldown", "-")
+        
+        self.cb_low_light = QCheckBox("Otimizar baixa iluminação")
+        self.cb_low_light.setStyleSheet("font-size: 14px; margin-top: 10px;")
+        self.cb_low_light.toggled.connect(self._toggle_low_light)
+        panel_layout.addWidget(self.cb_low_light)
         
         panel_layout.addStretch()
         parent_layout.addWidget(self.recognition_group, stretch=1)
@@ -167,6 +173,7 @@ class MainWindow(QMainWindow):
 
         try:
             self._gesture_pipeline = GesturePipeline()
+            self._gesture_pipeline.enhance_low_light = self._enhance_low_light_enabled
             self._gesture_pipeline.start()
         except Exception as exc:
             self._release_camera()
@@ -234,9 +241,7 @@ class MainWindow(QMainWindow):
 
         MODE_TO_FRAME_KEY = {
             "Original": "original_frame",
-            "HSV": "hsv_frame",
-            "Máscara / Threshold": "mask_frame",
-            "Contornos": "contours_frame",
+            "Pré-processamento": "enhanced_frame",
             "Resultado final": "result_frame",
         }
 
@@ -251,8 +256,7 @@ class MainWindow(QMainWindow):
     def _update_processing_grid(self, result: dict) -> None:
         frames = {
             "Original": result["original_frame"],
-            "HSV": result["hsv_frame"],
-            "Contornos": result["contours_frame"],
+            "Pré-processamento": result["enhanced_frame"],
             "Resultado final": result["result_frame"],
         }
 
@@ -351,6 +355,11 @@ class MainWindow(QMainWindow):
 
     def _set_recognition_idle_state(self):
         self._update_recognition_panel("-", "-", "-", "-", "Parado", "-")
+
+    def _toggle_low_light(self, checked: bool):
+        self._enhance_low_light_enabled = checked
+        if self._gesture_pipeline is not None:
+            self._gesture_pipeline.enhance_low_light = checked
 
     def _simulate_gesture(self):
         if not self.is_running:

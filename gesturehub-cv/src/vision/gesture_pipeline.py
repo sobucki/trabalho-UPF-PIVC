@@ -20,18 +20,14 @@ from src.vision.gesture_stabilizer import GestureStabilizer
 from src.vision.frame_renderer import render_final_frame
 from src.vision.frame_processing import (
     validate_bgr_frame,
-    create_hsv_frame,
-    create_threshold_mask_frame,
-    create_contours_frame
+    enhance_image_for_low_light
 )
 
 
 class GesturePipelineResult(TypedDict):
     original_frame: np.ndarray
+    enhanced_frame: np.ndarray
     rgb_frame: np.ndarray
-    hsv_frame: np.ndarray
-    mask_frame: np.ndarray
-    contours_frame: np.ndarray
     result_frame: np.ndarray
     landmarks_found: bool
     raw_label: int | None
@@ -71,6 +67,7 @@ class GesturePipeline:
             frames_required=frames_required,
             cooldown_seconds=cooldown_seconds,
         )
+        self.enhance_low_light = False
         self._started = False
 
     @property
@@ -126,10 +123,8 @@ class GesturePipeline:
     def _build_result(
         self,
         original_frame: np.ndarray,
+        enhanced_frame: np.ndarray,
         rgb_frame: np.ndarray,
-        hsv_frame: np.ndarray,
-        mask_frame: np.ndarray,
-        contours_frame: np.ndarray,
         result_frame: np.ndarray,
         landmarks_found: bool,
         raw_label: int | None,
@@ -140,10 +135,8 @@ class GesturePipeline:
     ) -> GesturePipelineResult:
         return {
             "original_frame": original_frame,
+            "enhanced_frame": enhanced_frame,
             "rgb_frame": rgb_frame,
-            "hsv_frame": hsv_frame,
-            "mask_frame": mask_frame,
-            "contours_frame": contours_frame,
             "result_frame": result_frame,
             "landmarks_found": landmarks_found,
             "raw_label": raw_label,
@@ -171,19 +164,17 @@ class GesturePipeline:
         frame_bgr = validate_bgr_frame(frame_bgr)
         original_frame = frame_bgr.copy()
         
-        rgb_frame = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        if self.enhance_low_light:
+            frame_bgr = enhance_image_for_low_light(frame_bgr)
+            
+        enhanced_frame = frame_bgr.copy()
         
-        # Gerar frames base
-        hsv_frame = create_hsv_frame(frame_bgr)
-        mask_frame = create_threshold_mask_frame(frame_bgr)
+        rgb_frame = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         
         mp_result = self.hand_landmarker.detect(rgb_frame, timestamp_ms)
         
         if mp_result.hand_landmarks:
             landmarks = mp_result.hand_landmarks[0]
-            
-            # Contornos estruturais (Landmarks)
-            contours_frame = create_contours_frame(frame_bgr, landmarks)
             
             raw_label = self.classifier.predict_from_landmarks(landmarks)
             
@@ -207,10 +198,8 @@ class GesturePipeline:
             
             return self._build_result(
                 original_frame=original_frame,
+                enhanced_frame=enhanced_frame,
                 rgb_frame=rgb_frame,
-                hsv_frame=hsv_frame,
-                mask_frame=mask_frame,
-                contours_frame=contours_frame,
                 result_frame=result_frame,
                 landmarks_found=True,
                 raw_label=raw_label,
@@ -221,9 +210,6 @@ class GesturePipeline:
             )
         else:
             stabilizer_result = self.stabilizer.update(None)
-            
-            # Contornos estruturais (Canny edge)
-            contours_frame = create_contours_frame(frame_bgr, None)
             
             raw_label = None
             gesture = "Nenhum"
@@ -244,10 +230,8 @@ class GesturePipeline:
             
             return self._build_result(
                 original_frame=original_frame,
+                enhanced_frame=enhanced_frame,
                 rgb_frame=rgb_frame,
-                hsv_frame=hsv_frame,
-                mask_frame=mask_frame,
-                contours_frame=contours_frame,
                 result_frame=result_frame,
                 landmarks_found=False,
                 raw_label=raw_label,
