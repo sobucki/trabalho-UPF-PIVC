@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import copy
 import cv2
+import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox
+    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog
 )
 from PySide6.QtCore import Qt, QTimer
 
@@ -47,6 +48,7 @@ class MainWindow(QMainWindow):
         self._gesture_pipeline = None
         self._timestamp_ms = 0
         self._camera_index = 0
+        self._video_source = None
         
         self._setup_ui()
         
@@ -140,7 +142,7 @@ class MainWindow(QMainWindow):
         self.btn_carregar_img.clicked.connect(self._show_feature_not_available)
         
         self.btn_carregar_vid = QPushButton("Carregar vídeo")
-        self.btn_carregar_vid.clicked.connect(self._show_feature_not_available)
+        self.btn_carregar_vid.clicked.connect(self._handle_video_btn)
         
         footer_layout.addWidget(self.btn_iniciar)
         footer_layout.addWidget(self.btn_parar)
@@ -152,6 +154,29 @@ class MainWindow(QMainWindow):
         
         self.main_layout.addLayout(footer_layout)
 
+    def _handle_video_btn(self):
+        if self._video_source is None:
+            self._load_video()
+        else:
+            self._remove_video()
+
+    def _load_video(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Selecionar Vídeo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov);;Todos os Arquivos (*)"
+        )
+        if file_path:
+            self._video_source = file_path
+            filename = os.path.basename(file_path)
+            self.btn_carregar_vid.setText(f"Remover Vídeo ({filename})")
+            if self.is_running:
+                self._stop_camera()
+
+    def _remove_video(self):
+        self._video_source = None
+        self.btn_carregar_vid.setText("Carregar vídeo")
+        if self.is_running:
+            self._stop_camera()
+
     def _set_running_state(self, running: bool) -> None:
         if running:
             self._start_camera()
@@ -162,13 +187,16 @@ class MainWindow(QMainWindow):
         if self.is_running:
             return
 
-        self._capture = cv2.VideoCapture(self._camera_index)
+        if self._video_source:
+            self._capture = cv2.VideoCapture(self._video_source)
+        else:
+            self._capture = cv2.VideoCapture(self._camera_index)
 
         if not self._capture.isOpened():
             self._capture.release()
             self._capture = None
-            self._set_error_state("Erro ao acessar câmera.")
-            QMessageBox.critical(self, "Erro de câmera", "Não foi possível abrir a webcam.")
+            self._set_error_state("Erro ao acessar fonte de vídeo.")
+            QMessageBox.critical(self, "Erro de vídeo", "Não foi possível abrir a webcam ou o vídeo.")
             return
 
         try:
@@ -182,7 +210,14 @@ class MainWindow(QMainWindow):
             return
 
         self._timestamp_ms = 0
-        self._camera_timer.start(30)
+        
+        timer_interval = 30
+        if self._video_source:
+            fps = self._capture.get(cv2.CAP_PROP_FPS)
+            if fps > 0:
+                timer_interval = int(1000 / fps)
+                
+        self._camera_timer.start(timer_interval)
         self._set_ui_running_state()
 
     def _stop_camera(self) -> None:
@@ -210,11 +245,19 @@ class MainWindow(QMainWindow):
         ret, frame = self._capture.read()
 
         if not ret:
-            self._set_error_state("Falha ao capturar frame da câmera.")
-            self._stop_camera()
-            return
+            if self._video_source:
+                self._capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = self._capture.read()
+                if not ret:
+                    self._stop_camera()
+                    return
+            else:
+                self._set_error_state("Falha ao capturar frame da câmera.")
+                self._stop_camera()
+                return
 
-        frame = cv2.flip(frame, 1)
+        if not self._video_source:
+            frame = cv2.flip(frame, 1)
 
         try:
             result = self._gesture_pipeline.process_frame(frame, self._timestamp_ms)
