@@ -5,43 +5,37 @@ DEFAULT_INTEGRATIONS = {
         "commands": [
             {
                 "gesture": "Mão aberta",
-                "event": "GESTURE_OPEN_HAND",
+                "event": "GESTURE_PALM",
                 "command": "F5",
                 "description": "Iniciar apresentação"
             },
             {
                 "gesture": "Punho fechado",
-                "event": "GESTURE_CLOSED_FIST",
+                "event": "GESTURE_FIST",
                 "command": "Esc",
                 "description": "Sair da apresentação"
             },
             {
-                "gesture": "Swipe direita",
+                "gesture": "Arrastar para direita",
                 "event": "GESTURE_SWIPE_RIGHT",
                 "command": "Right Arrow",
                 "description": "Próximo slide"
             },
             {
-                "gesture": "Swipe esquerda",
+                "gesture": "Arrastar para esquerda",
                 "event": "GESTURE_SWIPE_LEFT",
                 "command": "Left Arrow",
                 "description": "Slide anterior"
             },
             {
-                "gesture": "Apontar direita",
-                "event": "GESTURE_POINT_RIGHT",
-                "command": "Right Arrow",
-                "description": "Avançar slide"
-            },
-            {
-                "gesture": "Polegar cima",
-                "event": "GESTURE_THUMB_UP",
+                "gesture": "Joinha",
+                "event": "GESTURE_LIKE",
                 "command": "Page Down",
                 "description": "Avançar"
             },
             {
-                "gesture": "Polegar baixo",
-                "event": "GESTURE_THUMB_DOWN",
+                "gesture": "Joinha para baixo",
+                "event": "GESTURE_DISLIKE",
                 "command": "Page Up",
                 "description": "Voltar"
             }
@@ -53,46 +47,41 @@ DEFAULT_INTEGRATIONS = {
         "commands": [
             {
                 "gesture": "Mão aberta",
-                "event": "GESTURE_OPEN_HAND",
+                "event": "GESTURE_PALM",
                 "command": "PLAY_PAUSE",
                 "description": "Tocar / Pausar"
             },
             {
-                "gesture": "Punho fechado",
-                "event": "GESTURE_CLOSED_FIST",
+                "gesture": "Mudo",
+                "event": "GESTURE_MUTE",
                 "command": "MUTE",
                 "description": "Mutar volume"
             },
             {
-                "gesture": "Swipe direita",
+                "gesture": "Arrastar para direita",
                 "event": "GESTURE_SWIPE_RIGHT",
                 "command": "NEXT_TRACK",
                 "description": "Próxima faixa"
             },
             {
-                "gesture": "Swipe esquerda",
+                "gesture": "Arrastar para esquerda",
                 "event": "GESTURE_SWIPE_LEFT",
                 "command": "PREVIOUS_TRACK",
                 "description": "Faixa anterior"
             },
             {
-                "gesture": "Apontar direita",
-                "event": "GESTURE_POINT_RIGHT",
-                "command": "NEXT_TRACK",
-                "description": "Próxima faixa"
-            },
-            {
-                "gesture": "Polegar cima",
-                "event": "GESTURE_THUMB_UP",
+                "gesture": "Joinha",
+                "event": "GESTURE_LIKE",
                 "command": "VOLUME_UP",
                 "description": "Aumentar volume"
             },
             {
-                "gesture": "Polegar baixo",
-                "event": "GESTURE_THUMB_DOWN",
+                "gesture": "Joinha para baixo",
+                "event": "GESTURE_DISLIKE",
                 "command": "VOLUME_DOWN",
                 "description": "Diminuir volume"
             }
         ]
     }
 }
+
