@@ -147,7 +147,7 @@ def get_header_container_style() -> str:
     return f".QFrame {{ background-color: {SURFACE}; border-bottom: 1px solid {BORDER}; }}"
 
 def get_header_icon_style() -> str:
-    return f"background-color: transparent; color: {PRIMARY}; border: none;"
+    return f"background-color: {PRIMARY}; color: {SURFACE}; border-radius: 20px; border: none;"
 
 def get_header_title_style() -> str:
     return f"font-size: 20px; font-weight: 800; color: {TEXT_PRIMARY}; background: transparent; border: none;"
