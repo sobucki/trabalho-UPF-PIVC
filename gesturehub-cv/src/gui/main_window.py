@@ -192,8 +192,6 @@ class MainWindow(QMainWindow):
         self.gesture_value = self._create_recognition_field(panel_layout, "Gesto detectado", icons.icon_gesture(), "Aguardando gesto...")
         self.event_value = self._create_recognition_field(panel_layout, "Evento gerado", icons.icon_event(), "-")
         self.command_value = self._create_recognition_field(panel_layout, "Comando executado", icons.icon_command(), "-")
-        self.confidence_value = self._create_recognition_field(panel_layout, "Confiança", icons.icon_confidence(), "-")
-        self.status_value = self._create_recognition_field(panel_layout, "Status", icons.icon_recognition_status(), "ATIVO", is_status=True)
         self.cooldown_value = self._create_recognition_field(panel_layout, "Cooldown", icons.icon_cooldown(), "Pronto")
         
         panel_layout.addStretch()
@@ -274,23 +272,11 @@ class MainWindow(QMainWindow):
         self.btn_parar.setEnabled(False)
         self.btn_parar.clicked.connect(lambda: self._set_running_state(False))
         
-        self.btn_simular = QPushButton("Simular gesto")
-        self.btn_simular.setObjectName("secondaryButton")
-        self.btn_simular.setIcon(icons.icon_simulate())
-        self.btn_simular.setIconSize(BUTTON_ICON_SIZE)
-        self.btn_simular.clicked.connect(self._simulate_gesture)
-        
         self.btn_configurar = QPushButton("Configurar comandos")
         self.btn_configurar.setObjectName("secondaryButton")
         self.btn_configurar.setIcon(icons.icon_settings())
         self.btn_configurar.setIconSize(BUTTON_ICON_SIZE)
         self.btn_configurar.clicked.connect(self._open_command_settings)
-        
-        self.btn_carregar_img = QPushButton("Carregar imagem")
-        self.btn_carregar_img.setObjectName("secondaryButton")
-        self.btn_carregar_img.setIcon(icons.icon_image())
-        self.btn_carregar_img.setIconSize(BUTTON_ICON_SIZE)
-        self.btn_carregar_img.clicked.connect(self._show_feature_not_available)
         
         self.btn_carregar_vid = QPushButton("Carregar vídeo")
         self.btn_carregar_vid.setObjectName("secondaryButton")
@@ -300,10 +286,8 @@ class MainWindow(QMainWindow):
         
         footer_layout.addWidget(self.btn_iniciar)
         footer_layout.addWidget(self.btn_parar)
-        footer_layout.addWidget(self.btn_simular)
         footer_layout.addStretch()
         footer_layout.addWidget(self.btn_configurar)
-        footer_layout.addWidget(self.btn_carregar_img)
         footer_layout.addWidget(self.btn_carregar_vid)
         
         self.content_layout.addWidget(footer_card)
@@ -464,22 +448,17 @@ class MainWindow(QMainWindow):
     def _update_recognition_panel_from_result(self, result: dict, execution_result: dict | None = None) -> None:
         gesture = result.get("gesture", "Nenhum")
         event = result.get("event", "NO_GESTURE")
-        confidence = result.get("confidence", f'{result.get("stable_frames", 0)}/{result.get("required_frames", 5)}')
         cooldown = result.get("cooldown", "Pronto")
 
         if execution_result is not None:
             command = execution_result["command"] if execution_result.get("executed") else "-"
-            status = execution_result.get("message", "-")
         else:
             command = "-"
-            status = result.get("status", "-")
 
         self._update_recognition_panel(
             gesture=gesture,
             event=event,
             command=command,
-            confidence=confidence,
-            status=status,
             cooldown=cooldown,
         )
 
@@ -491,18 +470,13 @@ class MainWindow(QMainWindow):
         self.integration_status_label.setIcon(icons.icon_status("ATIVO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("ATIVO"))
         
-        self.status_value.setText("ATIVO")
-        self.status_value.setStyleSheet(get_status_label_style("ATIVO"))
         self.btn_iniciar.setEnabled(False)
         self.btn_parar.setEnabled(True)
-        self.btn_simular.setEnabled(False)
 
         self._update_recognition_panel(
             gesture="Aguardando...",
             event="-",
             command="-",
-            confidence="0/5",
-            status="Ativo",
             cooldown="Pronto",
         )
 
@@ -514,11 +488,8 @@ class MainWindow(QMainWindow):
         self.integration_status_label.setIcon(icons.icon_status("PARADO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("PARADO"))
         
-        self.status_value.setText("PARADO")
-        self.status_value.setStyleSheet(get_status_label_style("PARADO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
-        self.btn_simular.setEnabled(True)
 
         self._set_recognition_idle_state()
 
@@ -530,73 +501,35 @@ class MainWindow(QMainWindow):
         self.integration_status_label.setIcon(icons.icon_status("ERRO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("ERRO"))
         
-        self.status_value.setText("ERRO")
-        self.status_value.setStyleSheet(get_status_label_style("ERRO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
-        self.btn_simular.setEnabled(True)
 
         self._update_recognition_panel(
             gesture="-",
             event="-",
             command=message,
-            confidence="-",
-            status="Erro",
             cooldown="-",
         )
 
-    def _update_recognition_panel(self, gesture: str, event: str, command: str, confidence: str, status: str, cooldown: str):
+    def _update_recognition_panel(self, gesture: str, event: str, command: str, cooldown: str):
         self.gesture_value.setText(gesture)
         self.event_value.setText(event)
         self.command_value.setText(command)
-        self.confidence_value.setText(confidence)
-        
-        self.status_value.setText(status)
-        
-        # Puxa o status cru e exibe visualmente usando dicionario de cores do styles (se ele existir)
-        # O _format_status_for_panel idealmente daria as strings corretas, mas passamos a do ML direto
-        # O style map se ajeita usando upper, entao vamos apenas enviar
-        status_key = status.upper().replace(" ", "_")
-        # Mas para garantir, voltamos pro status 'ATIVO', 'PARADO', 'ERRO' pros rotulos estaticos da UI se não achou match visual no styles.
-        if "PRONTO" in status_key or "SUCESSO" in status_key:
-            self.status_value.setStyleSheet(get_status_label_style("ATIVO"))
-        else:
-            self.status_value.setStyleSheet(get_status_label_style(status_key))
-            
         self.cooldown_value.setText(cooldown)
 
     def _set_recognition_idle_state(self):
-        self._update_recognition_panel("-", "-", "-", "-", "Parado", "-")
+        self._update_recognition_panel("-", "-", "-", "-")
 
     def _toggle_low_light(self, checked: bool):
         self._enhance_low_light_enabled = checked
         if self._gesture_pipeline is not None:
             self._gesture_pipeline.enhance_low_light = checked
 
-    def _simulate_gesture(self):
-        if not self.is_running:
-            self.status_value.setText("AGUARDANDO")
-            self.status_value.setStyleSheet(get_status_label_style("AGUARDANDO"))
-            QMessageBox.information(self, "Aviso", "Inicie a aplicação primeiro para simular gestos.")
-            return
-            
-        self._update_recognition_panel(
-            "Swipe direita", 
-            "GESTURE_SWIPE_RIGHT", 
-            "Right Arrow", 
-            "92%", 
-            "COMANDO EXECUTADO", 
-            "0.7s"
-        )
-
     def _open_command_settings(self):
         dialog = CommandSettingsDialog(self, integrations=self._command_mapper.integrations)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             updated_integrations = dialog.get_integrations()
             self._command_mapper.update_integrations(updated_integrations)
-
-    def _show_feature_not_available(self):
-        QMessageBox.information(self, "Aviso", "Esta funcionalidade será implementada em uma etapa futura.")
         
     def closeEvent(self, event):
         """Garante a liberacao segura dos recursos C/C++ ao fechar o form"""
