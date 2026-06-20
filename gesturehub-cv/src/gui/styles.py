@@ -143,11 +143,11 @@ def get_app_stylesheet() -> str:
     }}
     """
 
-def get_header_card_style() -> str:
-    return f"background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 8px;"
+def get_header_container_style() -> str:
+    return f"background-color: {SURFACE}; border-bottom: 1px solid {BORDER};"
 
 def get_header_icon_style() -> str:
-    return f"background-color: {SURFACE_GREEN}; color: {PRIMARY}; border-radius: 20px; font-size: 20px; font-weight: bold;"
+    return f"background-color: {PRIMARY}; color: {SURFACE}; border-radius: 20px; font-size: 20px; font-weight: bold;"
 
 def get_header_title_style() -> str:
     return f"font-size: 20px; font-weight: 800; color: {TEXT_PRIMARY};"
@@ -156,10 +156,13 @@ def get_header_subtitle_style() -> str:
     return f"font-size: 13px; color: {TEXT_SECONDARY};"
 
 def get_integration_card_style() -> str:
-    return f"background-color: {SURFACE_ALT}; border: 1px solid {BORDER}; border-radius: 6px;"
+    return f"background-color: transparent; border: 1px solid {BORDER}; border-radius: 16px; padding: 4px 12px;"
 
 def get_header_integration_style() -> str:
-    return f"font-size: 13px; font-weight: 600; color: {TEXT_PRIMARY};"
+    return f"font-size: 13px; color: {TEXT_SECONDARY};"
+
+def get_header_integration_value_style() -> str:
+    return f"font-size: 13px; font-weight: bold; color: {TEXT_PRIMARY};"
 
 def get_footer_bar_style() -> str:
     return f"background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 8px;"
@@ -194,17 +197,20 @@ def get_roi_label_style() -> str:
 def get_recognition_panel_style() -> str:
     return f"background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px;"
 
+def get_recognition_header_icon_style() -> str:
+    return f"background-color: {SURFACE_GREEN}; color: {PRIMARY}; border-radius: 12px; font-size: 14px; font-weight: bold; padding: 4px;"
+
 def get_recognition_item_style() -> str:
-    return f"border-bottom: 1px solid {BORDER};"
+    return f"border-bottom: 1px solid {SURFACE_ALT};"
 
 def get_recognition_icon_style() -> str:
-    return f"color: {TEXT_MUTED}; font-size: 14px;"
+    return f"color: {PRIMARY}; font-size: 18px;"
 
 def get_recognition_title_style() -> str:
-    return f"color: {TEXT_SECONDARY}; font-size: 12px; font-weight: 600;"
+    return f"color: {TEXT_SECONDARY}; font-size: 12px; font-weight: 500;"
 
 def get_recognition_value_style() -> str:
-    return f"color: {TEXT_PRIMARY}; font-size: 15px; font-weight: 700;"
+    return f"color: {TEXT_PRIMARY}; font-size: 14px; font-weight: 800;"
 
 def get_low_light_panel_style() -> str:
     return f"background-color: {SURFACE_ALT}; border: 1px solid {BORDER}; border-radius: 6px;"
@@ -218,14 +224,14 @@ def get_status_label_style(status: str) -> str:
 def get_status_badge_style(status: str) -> str:
     status_upper = status.upper()
     if status_upper in ["ATIVO", "COMANDO EXECUTADO", "SUCESSO"]:
-        color = SUCCESS
+        color = PRIMARY_DARK
         bg = SURFACE_GREEN
         border = PRIMARY_SOFT
     elif status_upper in ["ERRO DE CÂMERA", "SEM MÃO DETECTADA", "ERRO"]:
         color = DANGER
         bg = "#FEF3F2"
         border = "#FECDCA"
-    elif status_upper in ["AGUARDANDO"]:
+    elif status_upper in ["AGUARDANDO", "AGUARDANDO GESTO..."]:
         color = WARNING
         bg = "#FFFAEB"
         border = "#FEF0C7"
@@ -245,6 +251,6 @@ def get_status_badge_style(status: str) -> str:
         background-color: {bg};
         border: 1px solid {border};
         border-radius: 10px;
-        padding: 4px 8px;
+        padding: 4px 10px;
     """
 

@@ -5,9 +5,12 @@ import cv2
 import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog, QFrame
+    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog, QFrame,
+    QToolButton
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QSize
+
+from src.gui import icons
 
 from .processing_view import ProcessingView
 from .command_settings_dialog import CommandSettingsDialog
@@ -17,8 +20,9 @@ from .styles import (
     get_status_label_style,
     get_header_title_style,
     get_header_integration_style,
+    get_header_integration_value_style,
     get_checkbox_inline_style,
-    get_header_card_style,
+    get_header_container_style,
     get_header_icon_style,
     get_header_subtitle_style,
     get_integration_card_style,
@@ -26,6 +30,7 @@ from .styles import (
     get_recognition_panel_style,
     get_recognition_item_style,
     get_recognition_icon_style,
+    get_recognition_header_icon_style,
     get_low_light_panel_style
 )
 from src.vision.gesture_pipeline import GesturePipeline
@@ -65,24 +70,33 @@ class MainWindow(QMainWindow):
         self._setup_ui()
         
     def _setup_ui(self):
-        self.main_layout.setContentsMargins(20, 20, 20, 20)
-        self.main_layout.setSpacing(16)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         
         self._create_header()
+        
+        self.content_wrapper = QWidget()
+        self.content_layout = QVBoxLayout(self.content_wrapper)
+        self.content_layout.setContentsMargins(20, 20, 20, 20)
+        self.content_layout.setSpacing(16)
+        
         self._create_content()
         self._create_footer_controls()
         
+        self.main_layout.addWidget(self.content_wrapper, stretch=1)
+        
     def _create_header(self):
         header_card = QFrame()
-        header_card.setStyleSheet(get_header_card_style())
+        header_card.setStyleSheet(get_header_container_style())
         header_layout = QHBoxLayout(header_card)
-        header_layout.setContentsMargins(16, 12, 16, 12)
+        header_layout.setContentsMargins(24, 12, 24, 12)
         
         # Left side
-        icon_label = QLabel("✋")
+        icon_label = QLabel()
         icon_label.setFixedSize(40, 40)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_label.setStyleSheet(get_header_icon_style())
+        icon_label.setPixmap(icons.icon_app_logo().pixmap(QSize(24, 24)))
         
         title_box = QVBoxLayout()
         title_box.setSpacing(0)
@@ -97,26 +111,43 @@ class MainWindow(QMainWindow):
         integration_card = QFrame()
         integration_card.setStyleSheet(get_integration_card_style())
         integration_layout = QHBoxLayout(integration_card)
-        integration_layout.setContentsMargins(12, 6, 12, 6)
-        integration_layout.setSpacing(10)
+        integration_layout.setContentsMargins(12, 4, 12, 4)
+        integration_layout.setSpacing(12)
         
-        integ_title = QLabel("Integração: Apresentações")
+        integ_icon = QLabel()
+        integ_icon.setPixmap(icons.icon_integration().pixmap(QSize(14, 14)))
+        integ_title = QLabel("Integração:")
         integ_title.setStyleSheet(get_header_integration_style())
+        integ_value = QLabel("Apresentações")
+        integ_value.setStyleSheet(get_header_integration_value_style())
+        
+        integ_box = QHBoxLayout()
+        integ_box.setSpacing(6)
+        integ_box.addWidget(integ_icon)
+        integ_box.addWidget(integ_title)
+        integ_box.addWidget(integ_value)
         
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
-        separator.setStyleSheet(f"color: #DDE3EA;")
+        separator.setStyleSheet(f"color: #DDE3EA; border: none; background-color: #DDE3EA; width: 1px;")
         
-        self.integration_status_label = QLabel("PARADO")
+        status_title = QLabel("Status do sistema")
+        status_title.setStyleSheet(get_header_integration_style())
+        
+        self.integration_status_label = QPushButton("PARADO")
+        self.integration_status_label.setIcon(icons.icon_status("PARADO"))
+        self.integration_status_label.setIconSize(QSize(14, 14))
         self.integration_status_label.setStyleSheet(get_status_label_style("PARADO"))
-        self.integration_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Hack to make QPushButton look exactly like our badge styling without button styles
+        self.integration_status_label.setFlat(True)
         
-        integration_layout.addWidget(integ_title)
+        integration_layout.addLayout(integ_box)
         integration_layout.addWidget(separator)
+        integration_layout.addWidget(status_title)
         integration_layout.addWidget(self.integration_status_label)
         
         header_layout.addWidget(icon_label)
-        header_layout.addSpacing(10)
+        header_layout.addSpacing(16)
         header_layout.addLayout(title_box)
         header_layout.addStretch()
         header_layout.addWidget(integration_card)
@@ -124,33 +155,49 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(header_card)
         
     def _create_content(self):
-        content_layout = QHBoxLayout()
-        content_layout.setSpacing(16)
+        content_layout_h = QHBoxLayout()
+        content_layout_h.setSpacing(16)
         
         self.processing_view = ProcessingView()
-        content_layout.addWidget(self.processing_view, stretch=3)
+        content_layout_h.addWidget(self.processing_view, stretch=3)
         
-        self._create_recognition_panel(content_layout)
+        self._create_recognition_panel(content_layout_h)
         
-        self.main_layout.addLayout(content_layout)
+        self.content_layout.addLayout(content_layout_h)
 
     def _create_recognition_panel(self, parent_layout):
+        from PySide6.QtWidgets import QFrame
+        
         panel_card = QFrame()
         panel_card.setStyleSheet(get_recognition_panel_style())
         panel_layout = QVBoxLayout(panel_card)
-        panel_layout.setContentsMargins(16, 16, 16, 16)
+        panel_layout.setContentsMargins(16, 20, 16, 16)
         panel_layout.setSpacing(0)
         
-        title_label = QLabel("Resultados em Tempo Real")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 12px;")
-        panel_layout.addWidget(title_label)
+        header_hlayout = QHBoxLayout()
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.icon_gesture().pixmap(QSize(20, 20)))
+        icon_label.setStyleSheet(get_recognition_header_icon_style())
+        title_label = QLabel("Painel de reconhecimento")
+        title_label.setStyleSheet("font-size: 15px; font-weight: bold; color: #111827;")
+        header_hlayout.addWidget(icon_label)
+        header_hlayout.addSpacing(4)
+        header_hlayout.addWidget(title_label)
+        header_hlayout.addStretch()
         
-        self.gesture_value = self._create_recognition_field(panel_layout, "Gesto detectado", "◎", "-")
-        self.event_value = self._create_recognition_field(panel_layout, "Evento gerado", "◇", "-")
-        self.command_value = self._create_recognition_field(panel_layout, "Comando", ">_", "-")
-        self.confidence_value = self._create_recognition_field(panel_layout, "Confiança", "|||", "-")
-        self.status_value = self._create_recognition_field(panel_layout, "Status", "✓", "PARADO", is_status=True)
-        self.cooldown_value = self._create_recognition_field(panel_layout, "Cooldown", "◷", "-")
+        separator = QFrame()
+        separator.setFixedHeight(2)
+        separator.setStyleSheet("background-color: #2E9D3F; border: none; margin-top: 10px; margin-bottom: 8px;")
+        
+        panel_layout.addLayout(header_hlayout)
+        panel_layout.addWidget(separator)
+        
+        self.gesture_value = self._create_recognition_field(panel_layout, "Gesto detectado", icons.icon_gesture(), "Aguardando gesto...")
+        self.event_value = self._create_recognition_field(panel_layout, "Evento gerado", icons.icon_event(), "-")
+        self.command_value = self._create_recognition_field(panel_layout, "Comando executado", icons.icon_command(), "-")
+        self.confidence_value = self._create_recognition_field(panel_layout, "Confiança", icons.icon_confidence(), "-")
+        self.status_value = self._create_recognition_field(panel_layout, "Status", icons.icon_recognition_status(), "ATIVO", is_status=True)
+        self.cooldown_value = self._create_recognition_field(panel_layout, "Cooldown", icons.icon_cooldown(), "Pronto")
         
         panel_layout.addStretch()
         
@@ -168,16 +215,21 @@ class MainWindow(QMainWindow):
         
         parent_layout.addWidget(panel_card, stretch=1)
 
-    def _create_recognition_field(self, parent_layout, title, icon_text, default_text, is_status=False):
+    def _create_recognition_field(self, parent_layout, title, icon, default_text, is_status=False):
         container = QFrame()
         container.setStyleSheet(get_recognition_item_style())
         
         layout = QHBoxLayout(container)
         layout.setContentsMargins(4, 12, 4, 12)
         
-        icon_label = QLabel(icon_text)
-        icon_label.setStyleSheet(get_recognition_icon_style())
-        icon_label.setFixedWidth(20)
+        icon_label = QLabel()
+        icon_label.setPixmap(icon.pixmap(QSize(18, 18)))
+        icon_label.setFixedWidth(28)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        
+        text_layout = QVBoxLayout()
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(4)
         
         title_label = QLabel(title)
         title_label.setStyleSheet(get_recognition_title_style())
@@ -185,48 +237,65 @@ class MainWindow(QMainWindow):
         value_label = QLabel(default_text)
         if is_status:
             value_label.setStyleSheet(get_status_label_style(default_text))
-            value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            value_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         else:
             value_label.setStyleSheet(get_recognition_value_style())
-            value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            value_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         
-        layout.addWidget(icon_label)
-        layout.addWidget(title_label)
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(value_label)
+        
+        layout.addWidget(icon_label, alignment=Qt.AlignmentFlag.AlignTop)
+        layout.addLayout(text_layout)
         layout.addStretch()
-        layout.addWidget(value_label)
         
         parent_layout.addWidget(container)
         return value_label
 
     def _create_footer_controls(self):
+        from PySide6.QtWidgets import QFrame
         footer_card = QFrame()
         footer_card.setStyleSheet(get_footer_bar_style())
         footer_layout = QHBoxLayout(footer_card)
         footer_layout.setContentsMargins(16, 12, 16, 12)
         
+        BUTTON_ICON_SIZE = QSize(16, 16)
+        
         self.btn_iniciar = QPushButton("Iniciar")
         self.btn_iniciar.setObjectName("primaryButton")
+        self.btn_iniciar.setIcon(icons.icon_play())
+        self.btn_iniciar.setIconSize(BUTTON_ICON_SIZE)
         self.btn_iniciar.clicked.connect(lambda: self._set_running_state(True))
         
         self.btn_parar = QPushButton("Parar")
         self.btn_parar.setObjectName("dangerButton")
+        self.btn_parar.setIcon(icons.icon_stop())
+        self.btn_parar.setIconSize(BUTTON_ICON_SIZE)
         self.btn_parar.setEnabled(False)
         self.btn_parar.clicked.connect(lambda: self._set_running_state(False))
         
         self.btn_simular = QPushButton("Simular gesto")
         self.btn_simular.setObjectName("secondaryButton")
+        self.btn_simular.setIcon(icons.icon_simulate())
+        self.btn_simular.setIconSize(BUTTON_ICON_SIZE)
         self.btn_simular.clicked.connect(self._simulate_gesture)
         
         self.btn_configurar = QPushButton("Configurar comandos")
         self.btn_configurar.setObjectName("secondaryButton")
+        self.btn_configurar.setIcon(icons.icon_settings())
+        self.btn_configurar.setIconSize(BUTTON_ICON_SIZE)
         self.btn_configurar.clicked.connect(self._open_command_settings)
         
         self.btn_carregar_img = QPushButton("Carregar imagem")
         self.btn_carregar_img.setObjectName("secondaryButton")
+        self.btn_carregar_img.setIcon(icons.icon_image())
+        self.btn_carregar_img.setIconSize(BUTTON_ICON_SIZE)
         self.btn_carregar_img.clicked.connect(self._show_feature_not_available)
         
         self.btn_carregar_vid = QPushButton("Carregar vídeo")
         self.btn_carregar_vid.setObjectName("secondaryButton")
+        self.btn_carregar_vid.setIcon(icons.icon_video())
+        self.btn_carregar_vid.setIconSize(BUTTON_ICON_SIZE)
         self.btn_carregar_vid.clicked.connect(self._handle_video_btn)
         
         footer_layout.addWidget(self.btn_iniciar)
@@ -237,7 +306,7 @@ class MainWindow(QMainWindow):
         footer_layout.addWidget(self.btn_carregar_img)
         footer_layout.addWidget(self.btn_carregar_vid)
         
-        self.main_layout.addWidget(footer_card)
+        self.content_layout.addWidget(footer_card)
 
     def _handle_video_btn(self):
         if self._video_source is None:
@@ -419,6 +488,7 @@ class MainWindow(QMainWindow):
         self.processing_view.set_running(True)
 
         self.integration_status_label.setText("ATIVO")
+        self.integration_status_label.setIcon(icons.icon_status("ATIVO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("ATIVO"))
         self.btn_iniciar.setEnabled(False)
         self.btn_parar.setEnabled(True)
@@ -438,6 +508,7 @@ class MainWindow(QMainWindow):
         self.processing_view.set_running(False)
 
         self.integration_status_label.setText("PARADO")
+        self.integration_status_label.setIcon(icons.icon_status("PARADO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("PARADO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
@@ -450,6 +521,7 @@ class MainWindow(QMainWindow):
         self.processing_view.set_running(False)
         
         self.integration_status_label.setText("ERRO")
+        self.integration_status_label.setIcon(icons.icon_status("ERRO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("ERRO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)

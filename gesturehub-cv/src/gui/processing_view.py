@@ -2,8 +2,10 @@ from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QGridLayout, 
     QLabel, QButtonGroup, QPushButton, QWidget, QSizePolicy
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QPixmap, QPainter
+
+from src.gui import icons
 
 from .styles import (
     get_processing_view_style, get_processing_card_style,
@@ -94,8 +96,8 @@ class ProcessingView(QFrame):
         
         # Header / Title
         header_layout = QHBoxLayout()
-        icon_label = QLabel("◉")
-        icon_label.setStyleSheet("color: #2E9D3F; font-size: 16px;")
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.icon_processing().pixmap(QSize(24, 24)))
         title_label = QLabel("Processamento OpenCV")
         title_label.setStyleSheet(get_processing_title_style())
         
@@ -184,12 +186,34 @@ class ProcessingView(QFrame):
         
         top_bar = QFrame()
         top_bar.setStyleSheet("background-color: transparent;")
-        top_layout = QHBoxLayout(top_bar)
+        top_layout = QVBoxLayout(top_bar)
+        top_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        top_layout.setSpacing(4)
         
-        badge = QLabel(f"Modo de visualização: {mode}")
-        badge.setStyleSheet("background-color: #FFFFFF; border: 1px solid #DDE3EA; color: #111827; padding: 6px 14px; border-radius: 14px; font-weight: 600; font-size: 12px;")
+        badge_layout = QHBoxLayout()
+        badge_layout.setContentsMargins(0, 0, 0, 0)
+        badge_layout.setSpacing(6)
         
-        top_layout.addWidget(badge, alignment=Qt.AlignmentFlag.AlignHCenter)
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.icon_view_mode().pixmap(QSize(16, 16)))
+        
+        mode_label = QLabel(f"Modo de visualização: <b>{mode}</b>")
+        mode_label.setStyleSheet("color: #111827; font-size: 13px;")
+        
+        badge_layout.addWidget(icon_label)
+        badge_layout.addWidget(mode_label)
+        
+        badge_container = QWidget()
+        badge_container.setLayout(badge_layout)
+        badge_container.setStyleSheet("background-color: #FFFFFF; border: 1px solid #DDE3EA; padding: 6px 14px; border-radius: 14px;")
+        
+        desc_label = QLabel(self._get_mode_description(mode))
+        desc_label.setStyleSheet("color: #667085; font-size: 12px;")
+        desc_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        
+        top_layout.addWidget(badge_container, alignment=Qt.AlignmentFlag.AlignHCenter)
+        top_layout.addWidget(desc_label, alignment=Qt.AlignmentFlag.AlignHCenter)
+        
         layout.addWidget(top_bar)
         layout.addWidget(self.single_view_label, stretch=1)
         
