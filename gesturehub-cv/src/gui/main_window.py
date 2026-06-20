@@ -116,29 +116,26 @@ class MainWindow(QMainWindow):
         
         integ_icon = QLabel()
         integ_icon.setPixmap(icons.icon_integration().pixmap(QSize(14, 14)))
-        integ_title = QLabel("Integração:")
-        integ_title.setStyleSheet(get_header_integration_style())
-        integ_value = QLabel("Apresentações")
-        integ_value.setStyleSheet(get_header_integration_value_style())
+        integ_icon.setStyleSheet("background: transparent; border: none;")
+        integ_title = QLabel("Integração: Apresentações")
+        integ_title.setStyleSheet("font-size: 13px; font-weight: 500; color: #111827; background: transparent; border: none;")
         
         integ_box = QHBoxLayout()
         integ_box.setSpacing(6)
         integ_box.addWidget(integ_icon)
         integ_box.addWidget(integ_title)
-        integ_box.addWidget(integ_value)
         
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
         separator.setStyleSheet(f"color: #DDE3EA; border: none; background-color: #DDE3EA; width: 1px;")
         
-        status_title = QLabel("Status do sistema")
-        status_title.setStyleSheet(get_header_integration_style())
+        status_title = QLabel("Status do sistema:")
+        status_title.setStyleSheet("font-size: 13px; color: #667085; background: transparent; border: none;")
         
         self.integration_status_label = QPushButton("PARADO")
         self.integration_status_label.setIcon(icons.icon_status("PARADO"))
-        self.integration_status_label.setIconSize(QSize(14, 14))
+        self.integration_status_label.setIconSize(QSize(12, 12))
         self.integration_status_label.setStyleSheet(get_status_label_style("PARADO"))
-        # Hack to make QPushButton look exactly like our badge styling without button styles
         self.integration_status_label.setFlat(True)
         
         integration_layout.addLayout(integ_box)
@@ -179,7 +176,7 @@ class MainWindow(QMainWindow):
         icon_label.setPixmap(icons.icon_gesture().pixmap(QSize(20, 20)))
         icon_label.setStyleSheet(get_recognition_header_icon_style())
         title_label = QLabel("Painel de reconhecimento")
-        title_label.setStyleSheet("font-size: 15px; font-weight: bold; color: #111827;")
+        title_label.setStyleSheet("font-size: 15px; font-weight: bold; color: #111827; background: transparent; border: none;")
         header_hlayout.addWidget(icon_label)
         header_hlayout.addSpacing(4)
         header_hlayout.addWidget(title_label)
@@ -235,6 +232,9 @@ class MainWindow(QMainWindow):
         title_label.setStyleSheet(get_recognition_title_style())
         
         value_label = QLabel(default_text)
+        value_label.setWordWrap(True)
+        value_label.setMinimumWidth(100)
+        
         if is_status:
             value_label.setStyleSheet(get_status_label_style(default_text))
             value_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -490,6 +490,9 @@ class MainWindow(QMainWindow):
         self.integration_status_label.setText("ATIVO")
         self.integration_status_label.setIcon(icons.icon_status("ATIVO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("ATIVO"))
+        
+        self.status_value.setText("ATIVO")
+        self.status_value.setStyleSheet(get_status_label_style("ATIVO"))
         self.btn_iniciar.setEnabled(False)
         self.btn_parar.setEnabled(True)
         self.btn_simular.setEnabled(False)
@@ -510,6 +513,9 @@ class MainWindow(QMainWindow):
         self.integration_status_label.setText("PARADO")
         self.integration_status_label.setIcon(icons.icon_status("PARADO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("PARADO"))
+        
+        self.status_value.setText("PARADO")
+        self.status_value.setStyleSheet(get_status_label_style("PARADO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
         self.btn_simular.setEnabled(True)
@@ -523,6 +529,9 @@ class MainWindow(QMainWindow):
         self.integration_status_label.setText("ERRO")
         self.integration_status_label.setIcon(icons.icon_status("ERRO"))
         self.integration_status_label.setStyleSheet(get_status_label_style("ERRO"))
+        
+        self.status_value.setText("ERRO")
+        self.status_value.setStyleSheet(get_status_label_style("ERRO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
         self.btn_simular.setEnabled(True)

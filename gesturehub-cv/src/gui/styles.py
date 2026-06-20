@@ -144,43 +144,43 @@ def get_app_stylesheet() -> str:
     """
 
 def get_header_container_style() -> str:
-    return f"background-color: {SURFACE}; border-bottom: 1px solid {BORDER};"
+    return f".QFrame {{ background-color: {SURFACE}; border-bottom: 1px solid {BORDER}; }}"
 
 def get_header_icon_style() -> str:
-    return f"background-color: {PRIMARY}; color: {SURFACE}; border-radius: 20px; font-size: 20px; font-weight: bold;"
+    return f"background-color: transparent; color: {PRIMARY}; border: none;"
 
 def get_header_title_style() -> str:
-    return f"font-size: 20px; font-weight: 800; color: {TEXT_PRIMARY};"
+    return f"font-size: 20px; font-weight: 800; color: {TEXT_PRIMARY}; background: transparent; border: none;"
 
 def get_header_subtitle_style() -> str:
-    return f"font-size: 13px; color: {TEXT_SECONDARY};"
+    return f"font-size: 13px; color: {TEXT_SECONDARY}; background: transparent; border: none;"
 
 def get_integration_card_style() -> str:
-    return f"background-color: transparent; border: 1px solid {BORDER}; border-radius: 16px; padding: 4px 12px;"
+    return f".QFrame {{ background-color: {SURFACE_ALT}; border-radius: 16px; padding: 4px 12px; }}"
 
 def get_header_integration_style() -> str:
-    return f"font-size: 13px; color: {TEXT_SECONDARY};"
+    return f"font-size: 13px; color: {TEXT_SECONDARY}; background: transparent; border: none;"
 
 def get_header_integration_value_style() -> str:
-    return f"font-size: 13px; font-weight: bold; color: {TEXT_PRIMARY};"
+    return f"font-size: 13px; font-weight: bold; color: {TEXT_PRIMARY}; background: transparent; border: none;"
 
 def get_footer_bar_style() -> str:
-    return f"background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 8px;"
+    return f".QFrame {{ background-color: {SURFACE}; border-top: 1px solid {BORDER}; }}"
 
 def get_processing_view_style() -> str:
-    return f"background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px;"
+    return f".QFrame {{ background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px; }}"
 
 def get_processing_viewport_style() -> str:
     return f"background-color: {BACKGROUND}; border: 1px solid {BORDER}; border-radius: 8px;"
 
 def get_processing_card_style() -> str:
-    return f"background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 8px;"
+    return f".QFrame {{ background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px; }}"
 
 def get_processing_title_style() -> str:
-    return f"color: {TEXT_PRIMARY}; font-weight: bold; font-size: 15px;"
+    return f"font-size: 16px; font-weight: bold; color: {TEXT_PRIMARY}; background: transparent; border: none;"
 
 def get_processing_description_style() -> str:
-    return f"color: {TEXT_SECONDARY}; font-size: 12px;"
+    return f"font-size: 12px; color: {TEXT_SECONDARY}; background: transparent; border: none;"
 
 def get_roi_style() -> str:
     return f"""
@@ -195,25 +195,25 @@ def get_roi_label_style() -> str:
     return f"color: {PRIMARY}; font-size: 11px; font-weight: bold; background-color: {SURFACE}; padding: 2px; border-radius: 2px;"
 
 def get_recognition_panel_style() -> str:
-    return f"background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px;"
+    return f".QFrame {{ background-color: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px; }}"
 
 def get_recognition_header_icon_style() -> str:
-    return f"background-color: {SURFACE_GREEN}; color: {PRIMARY}; border-radius: 12px; font-size: 14px; font-weight: bold; padding: 4px;"
+    return f"background: transparent; border: none;"
 
 def get_recognition_item_style() -> str:
-    return f"border-bottom: 1px solid {SURFACE_ALT};"
+    return f".QFrame {{ border-bottom: 1px solid {SURFACE_ALT}; }}"
 
 def get_recognition_icon_style() -> str:
-    return f"color: {PRIMARY}; font-size: 18px;"
+    return f"background: transparent; border: none;"
 
 def get_recognition_title_style() -> str:
-    return f"color: {TEXT_SECONDARY}; font-size: 12px; font-weight: 500;"
+    return f"color: {TEXT_SECONDARY}; font-size: 12px; font-weight: 500; background: transparent; border: none;"
 
 def get_recognition_value_style() -> str:
-    return f"color: {TEXT_PRIMARY}; font-size: 14px; font-weight: 800;"
+    return f"color: {TEXT_PRIMARY}; font-size: 14px; font-weight: 800; background: transparent; border: none;"
 
 def get_low_light_panel_style() -> str:
-    return f"background-color: {SURFACE_ALT}; border: 1px solid {BORDER}; border-radius: 6px;"
+    return f".QFrame {{ background-color: {SURFACE_ALT}; border-radius: 8px; }}"
 
 def get_checkbox_inline_style() -> str:
     return "font-weight: 500;"
@@ -250,7 +250,7 @@ def get_status_badge_style(status: str) -> str:
         font-weight: 800;
         background-color: {bg};
         border: 1px solid {border};
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 4px 10px;
     """
 
