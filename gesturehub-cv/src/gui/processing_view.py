@@ -8,7 +8,7 @@ from PySide6.QtGui import QPixmap, QPainter
 from .styles import (
     get_processing_view_style, get_processing_card_style,
     get_processing_title_style, get_processing_description_style,
-    get_roi_style, get_roi_label_style
+    get_roi_style, get_roi_label_style, get_processing_viewport_style
 )
 
 PROCESSING_MODES = [
@@ -88,12 +88,22 @@ class ProcessingView(QFrame):
         
     def _setup_ui(self):
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setContentsMargins(16, 16, 16, 16)
+        self.main_layout.setSpacing(16)
+        self.setStyleSheet(get_processing_view_style())
         
         # Header / Title
+        header_layout = QHBoxLayout()
+        icon_label = QLabel("◉")
+        icon_label.setStyleSheet("color: #2E9D3F; font-size: 16px;")
         title_label = QLabel("Processamento OpenCV")
         title_label.setStyleSheet(get_processing_title_style())
-        self.main_layout.addWidget(title_label)
+        
+        header_layout.addWidget(icon_label)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        
+        self.main_layout.addLayout(header_layout)
         
         # Mode Controls
         self._create_controls()
@@ -164,29 +174,23 @@ class ProcessingView(QFrame):
         self._clear_view()
         
         self.single_view_frame = QFrame()
-        self.single_view_frame.setStyleSheet(get_processing_view_style())
+        self.single_view_frame.setStyleSheet(get_processing_viewport_style())
         
         layout = QVBoxLayout(self.single_view_frame)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        self.single_view_title = QLabel(f"Modo de visualização: {mode}")
-        self.single_view_title.setStyleSheet(get_processing_title_style())
-        self.single_view_title.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        
-        description_text = self._get_mode_description(mode)
-        desc_label = QLabel(description_text)
-        desc_label.setStyleSheet(get_processing_description_style())
-        desc_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        
-        header_layout = QVBoxLayout()
-        header_layout.addWidget(self.single_view_title)
-        header_layout.addWidget(desc_label)
-        header_layout.setSpacing(2)
-        
-        layout.addLayout(header_layout)
-        layout.addStretch()
+        layout.setContentsMargins(0, 0, 0, 0)
         
         self.single_view_label = FrameLabel()
+        
+        top_bar = QFrame()
+        top_bar.setStyleSheet("background-color: transparent;")
+        top_layout = QHBoxLayout(top_bar)
+        
+        badge = QLabel(f"Modo de visualização: {mode}")
+        badge.setStyleSheet("background-color: #FFFFFF; border: 1px solid #DDE3EA; color: #111827; padding: 6px 14px; border-radius: 14px; font-weight: 600; font-size: 12px;")
+        
+        top_layout.addWidget(badge, alignment=Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(top_bar)
         layout.addWidget(self.single_view_label, stretch=1)
         
         self.view_layout.addWidget(self.single_view_frame)

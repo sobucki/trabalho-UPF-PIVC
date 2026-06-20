@@ -5,7 +5,7 @@ import cv2
 import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog
+    QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog, QFrame
 )
 from PySide6.QtCore import Qt, QTimer
 
@@ -14,7 +14,19 @@ from .command_settings_dialog import CommandSettingsDialog
 from .styles import (
     get_recognition_title_style,
     get_recognition_value_style,
-    get_status_label_style
+    get_status_label_style,
+    get_header_title_style,
+    get_header_integration_style,
+    get_checkbox_inline_style,
+    get_header_card_style,
+    get_header_icon_style,
+    get_header_subtitle_style,
+    get_integration_card_style,
+    get_footer_bar_style,
+    get_recognition_panel_style,
+    get_recognition_item_style,
+    get_recognition_icon_style,
+    get_low_light_panel_style
 )
 from src.vision.gesture_pipeline import GesturePipeline
 from src.gui.image_utils import cv_frame_to_qpixmap
@@ -53,28 +65,67 @@ class MainWindow(QMainWindow):
         self._setup_ui()
         
     def _setup_ui(self):
+        self.main_layout.setContentsMargins(20, 20, 20, 20)
+        self.main_layout.setSpacing(16)
+        
         self._create_header()
         self._create_content()
         self._create_footer_controls()
         
     def _create_header(self):
-        header_layout = QHBoxLayout()
+        header_card = QFrame()
+        header_card.setStyleSheet(get_header_card_style())
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(16, 12, 16, 12)
         
-        title_label = QLabel("<b>GestureHub CV</b>")
-        title_label.setStyleSheet("font-size: 24px;")
+        # Left side
+        icon_label = QLabel("✋")
+        icon_label.setFixedSize(40, 40)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setStyleSheet(get_header_icon_style())
         
-        self.integration_label = QLabel("Integração: Apresentações | PARADO")
-        self.integration_label.setStyleSheet("font-size: 16px;")
-        self.integration_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        title_box = QVBoxLayout()
+        title_box.setSpacing(0)
+        title_label = QLabel("GestureHub CV")
+        title_label.setStyleSheet(get_header_title_style())
+        subtitle_label = QLabel("Controle configurável por gestos")
+        subtitle_label.setStyleSheet(get_header_subtitle_style())
+        title_box.addWidget(title_label)
+        title_box.addWidget(subtitle_label)
         
-        header_layout.addWidget(title_label)
+        # Right side - Integration Badge
+        integration_card = QFrame()
+        integration_card.setStyleSheet(get_integration_card_style())
+        integration_layout = QHBoxLayout(integration_card)
+        integration_layout.setContentsMargins(12, 6, 12, 6)
+        integration_layout.setSpacing(10)
+        
+        integ_title = QLabel("Integração: Apresentações")
+        integ_title.setStyleSheet(get_header_integration_style())
+        
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setStyleSheet(f"color: #DDE3EA;")
+        
+        self.integration_status_label = QLabel("PARADO")
+        self.integration_status_label.setStyleSheet(get_status_label_style("PARADO"))
+        self.integration_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        integration_layout.addWidget(integ_title)
+        integration_layout.addWidget(separator)
+        integration_layout.addWidget(self.integration_status_label)
+        
+        header_layout.addWidget(icon_label)
+        header_layout.addSpacing(10)
+        header_layout.addLayout(title_box)
         header_layout.addStretch()
-        header_layout.addWidget(self.integration_label)
+        header_layout.addWidget(integration_card)
         
-        self.main_layout.addLayout(header_layout)
+        self.main_layout.addWidget(header_card)
         
     def _create_content(self):
         content_layout = QHBoxLayout()
+        content_layout.setSpacing(16)
         
         self.processing_view = ProcessingView()
         content_layout.addWidget(self.processing_view, stretch=3)
@@ -84,64 +135,98 @@ class MainWindow(QMainWindow):
         self.main_layout.addLayout(content_layout)
 
     def _create_recognition_panel(self, parent_layout):
-        self.recognition_group = QGroupBox("Painel de reconhecimento")
-        panel_layout = QVBoxLayout(self.recognition_group)
-        panel_layout.setSpacing(15)
+        panel_card = QFrame()
+        panel_card.setStyleSheet(get_recognition_panel_style())
+        panel_layout = QVBoxLayout(panel_card)
+        panel_layout.setContentsMargins(16, 16, 16, 16)
+        panel_layout.setSpacing(0)
         
-        self.gesture_value = self._create_recognition_field(panel_layout, "Gesto detectado", "-")
-        self.event_value = self._create_recognition_field(panel_layout, "Evento gerado", "-")
-        self.command_value = self._create_recognition_field(panel_layout, "Comando executado", "-")
-        self.confidence_value = self._create_recognition_field(panel_layout, "Confiança", "-")
-        self.status_value = self._create_recognition_field(panel_layout, "Status", "PARADO")
-        self.status_value.setStyleSheet(get_status_label_style("PARADO"))
-        self.cooldown_value = self._create_recognition_field(panel_layout, "Cooldown", "-")
+        title_label = QLabel("Resultados em Tempo Real")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 12px;")
+        panel_layout.addWidget(title_label)
         
-        self.cb_low_light = QCheckBox("Otimizar baixa iluminação")
-        self.cb_low_light.setStyleSheet("font-size: 14px; margin-top: 10px;")
-        self.cb_low_light.toggled.connect(self._toggle_low_light)
-        panel_layout.addWidget(self.cb_low_light)
+        self.gesture_value = self._create_recognition_field(panel_layout, "Gesto detectado", "◎", "-")
+        self.event_value = self._create_recognition_field(panel_layout, "Evento gerado", "◇", "-")
+        self.command_value = self._create_recognition_field(panel_layout, "Comando", ">_", "-")
+        self.confidence_value = self._create_recognition_field(panel_layout, "Confiança", "|||", "-")
+        self.status_value = self._create_recognition_field(panel_layout, "Status", "✓", "PARADO", is_status=True)
+        self.cooldown_value = self._create_recognition_field(panel_layout, "Cooldown", "◷", "-")
         
         panel_layout.addStretch()
-        parent_layout.addWidget(self.recognition_group, stretch=1)
+        
+        low_light_card = QFrame()
+        low_light_card.setStyleSheet(get_low_light_panel_style())
+        low_light_layout = QVBoxLayout(low_light_card)
+        low_light_layout.setContentsMargins(12, 12, 12, 12)
+        
+        self.cb_low_light = QCheckBox("Otimizar baixa iluminação")
+        self.cb_low_light.setStyleSheet(get_checkbox_inline_style())
+        self.cb_low_light.toggled.connect(self._toggle_low_light)
+        low_light_layout.addWidget(self.cb_low_light)
+        
+        panel_layout.addWidget(low_light_card)
+        
+        parent_layout.addWidget(panel_card, stretch=1)
 
-    def _create_recognition_field(self, parent_layout, title, default_text):
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)
+    def _create_recognition_field(self, parent_layout, title, icon_text, default_text, is_status=False):
+        container = QFrame()
+        container.setStyleSheet(get_recognition_item_style())
+        
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(4, 12, 4, 12)
+        
+        icon_label = QLabel(icon_text)
+        icon_label.setStyleSheet(get_recognition_icon_style())
+        icon_label.setFixedWidth(20)
         
         title_label = QLabel(title)
         title_label.setStyleSheet(get_recognition_title_style())
         
         value_label = QLabel(default_text)
-        value_label.setStyleSheet(get_recognition_value_style())
+        if is_status:
+            value_label.setStyleSheet(get_status_label_style(default_text))
+            value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        else:
+            value_label.setStyleSheet(get_recognition_value_style())
+            value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         
+        layout.addWidget(icon_label)
         layout.addWidget(title_label)
+        layout.addStretch()
         layout.addWidget(value_label)
         
         parent_layout.addWidget(container)
         return value_label
 
     def _create_footer_controls(self):
-        footer_layout = QHBoxLayout()
+        footer_card = QFrame()
+        footer_card.setStyleSheet(get_footer_bar_style())
+        footer_layout = QHBoxLayout(footer_card)
+        footer_layout.setContentsMargins(16, 12, 16, 12)
         
         self.btn_iniciar = QPushButton("Iniciar")
+        self.btn_iniciar.setObjectName("primaryButton")
         self.btn_iniciar.clicked.connect(lambda: self._set_running_state(True))
         
         self.btn_parar = QPushButton("Parar")
+        self.btn_parar.setObjectName("dangerButton")
         self.btn_parar.setEnabled(False)
         self.btn_parar.clicked.connect(lambda: self._set_running_state(False))
         
         self.btn_simular = QPushButton("Simular gesto")
+        self.btn_simular.setObjectName("secondaryButton")
         self.btn_simular.clicked.connect(self._simulate_gesture)
         
         self.btn_configurar = QPushButton("Configurar comandos")
+        self.btn_configurar.setObjectName("secondaryButton")
         self.btn_configurar.clicked.connect(self._open_command_settings)
         
         self.btn_carregar_img = QPushButton("Carregar imagem")
+        self.btn_carregar_img.setObjectName("secondaryButton")
         self.btn_carregar_img.clicked.connect(self._show_feature_not_available)
         
         self.btn_carregar_vid = QPushButton("Carregar vídeo")
+        self.btn_carregar_vid.setObjectName("secondaryButton")
         self.btn_carregar_vid.clicked.connect(self._handle_video_btn)
         
         footer_layout.addWidget(self.btn_iniciar)
@@ -152,7 +237,7 @@ class MainWindow(QMainWindow):
         footer_layout.addWidget(self.btn_carregar_img)
         footer_layout.addWidget(self.btn_carregar_vid)
         
-        self.main_layout.addLayout(footer_layout)
+        self.main_layout.addWidget(footer_card)
 
     def _handle_video_btn(self):
         if self._video_source is None:
@@ -333,7 +418,8 @@ class MainWindow(QMainWindow):
         self.is_running = True
         self.processing_view.set_running(True)
 
-        self.integration_label.setText("Integração: Apresentações | ATIVO")
+        self.integration_status_label.setText("ATIVO")
+        self.integration_status_label.setStyleSheet(get_status_label_style("ATIVO"))
         self.btn_iniciar.setEnabled(False)
         self.btn_parar.setEnabled(True)
         self.btn_simular.setEnabled(False)
@@ -351,7 +437,8 @@ class MainWindow(QMainWindow):
         self.is_running = False
         self.processing_view.set_running(False)
 
-        self.integration_label.setText("Integração: Apresentações | PARADO")
+        self.integration_status_label.setText("PARADO")
+        self.integration_status_label.setStyleSheet(get_status_label_style("PARADO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
         self.btn_simular.setEnabled(True)
@@ -362,7 +449,8 @@ class MainWindow(QMainWindow):
         self.is_running = False
         self.processing_view.set_running(False)
         
-        self.integration_label.setText("Integração: Apresentações | ERRO")
+        self.integration_status_label.setText("ERRO")
+        self.integration_status_label.setStyleSheet(get_status_label_style("ERRO"))
         self.btn_iniciar.setEnabled(True)
         self.btn_parar.setEnabled(False)
         self.btn_simular.setEnabled(True)
