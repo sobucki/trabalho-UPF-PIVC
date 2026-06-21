@@ -21,3 +21,41 @@ A arquitetura e as funções do projeto estão divididas nos seguintes módulos 
 - **Mapeamento e Execução de Comandos:** Módulos em `src/integrations/` e controle para mapear os gestos reconhecidos em atalhos de teclado (ex: Seta para Direita, Seta para Esquerda).
 - **Múltiplas Fontes de Entrada:** Suporte para captura tanto via **Webcam ao vivo** quanto por **Arquivos de Vídeo** (`.mp4`, `.avi`, etc.), permitindo que diferentes arquivos de entrada sejam testados (conforme exigido pelo escopo). Os vídeos carregados rodam em loop, aplicando o FPS original e sem espelhamento incorreto da câmera.
 - **Manipulação de Imagens:** Aplicação de rotinas e filtros sobre os frames capturados antes de exibi-los na tela de processamento.
+
+## 🎥 Vídeo Demonstrativo
+
+[Assista à demonstração do GestureHub CV no YouTube](https://www.youtube.com/watch?v=SEU_LINK_AQUI)
+
+## ⚙️ Pré-requisitos
+
+- Python 3.10+ instalado
+- Webcam (para o modo de captura ao vivo) e/ou um arquivo de vídeo (`.mp4`, `.avi`, etc.) para teste
+
+## 📦 Como Executar
+
+1. Clone o repositório:
+   ```bash
+   git clone <url-do-repositorio>
+   cd "Trabalho PPIV/gesturehub-cv"
+   ```
+
+2. Crie e ative um ambiente virtual:
+   ```bash
+   python -m venv venv
+   # Windows
+   venv\Scripts\activate
+   # Linux/Mac
+   source venv/bin/activate
+   ```
+
+3. Instale as dependências:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Execute a aplicação:
+   ```bash
+   python main.py
+   ```
+
+5. Na interface, escolha a fonte de entrada (webcam ou arquivo de vídeo), inicie o rastreamento e faça os gestos suportados na frente da câmera.
