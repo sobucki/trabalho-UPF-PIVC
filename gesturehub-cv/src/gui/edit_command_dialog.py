@@ -1,7 +1,19 @@
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QComboBox, QPushButton, QFormLayout
 )
+
+ALLOWED_COMMANDS = {
+    "keyboard": [
+        "F5", "Esc", "Right Arrow", "Left Arrow",
+        "Page Down", "Page Up", "Space", "Enter"
+    ],
+    "media_key": [
+        "PLAY_PAUSE", "NEXT_TRACK", "PREVIOUS_TRACK",
+        "VOLUME_UP", "VOLUME_DOWN", "MUTE"
+    ],
+}
+
 
 class EditCommandDialog(QDialog):
     def __init__(self, command_data: dict, command_type: str, parent=None):
@@ -68,17 +80,7 @@ class EditCommandDialog(QDialog):
         layout.addLayout(btn_layout)
         
     def _get_allowed_commands(self) -> list:
-        if self.command_type == "keyboard":
-            return [
-                "F5", "Esc", "Right Arrow", "Left Arrow", 
-                "Page Down", "Page Up", "Space", "Enter"
-            ]
-        elif self.command_type == "media_key":
-            return [
-                "PLAY_PAUSE", "NEXT_TRACK", "PREVIOUS_TRACK", 
-                "VOLUME_UP", "VOLUME_DOWN", "MUTE"
-            ]
-        return []
+        return ALLOWED_COMMANDS.get(self.command_type, [])
 
     def get_updated_command(self) -> dict:
         self.command_data['command'] = self.cmd_combo.currentText()

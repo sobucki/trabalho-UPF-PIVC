@@ -149,6 +149,19 @@ def is_known_label(label: int | None) -> bool:
     return label in GESTURE_LABELS
 
 
+def list_assignable_gestures() -> list[dict]:
+    """Retorna todos os gestos (estáticos e dinâmicos) que podem ser mapeados a um comando."""
+    assignable = [
+        {"gesture": info["gesture"], "event": info["event"]}
+        for info in GESTURE_LABELS.values()
+    ]
+    assignable.extend(
+        {"gesture": info["gesture"], "event": info["event"]}
+        for info in SWIPE_INFO.values()
+    )
+    return assignable
+
+
 def list_supported_gestures() -> list[dict]:
     """Retorna uma lista com todos os gestos suportados e seus metadados."""
     supported = []

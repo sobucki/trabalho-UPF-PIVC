@@ -226,3 +226,6 @@ gesture-hub.md
 # Datasets gerados (muito grandes para o GitHub - use convert_hagrid.py para regenerar)
 gesturehub-cv/models/gesture_data_hagrid.csv
 HAgrid/
+
+# Configuração de integrações/comandos salva localmente pelo usuário
+gesturehub-cv/config/integrations.json
