@@ -14,9 +14,9 @@ class SwipeDetectorConfig:
     """Parâmetros ajustáveis do detector de swipe."""
 
     # Janela de tempo (segundos) em que o deslocamento é avaliado
-    time_window_s: float = 0.5
+    time_window_s: float = 0.7
     # Deslocamento horizontal mínimo, como fração da largura do frame, para disparar o swipe
-    min_displacement_ratio: float = 0.18
+    min_displacement_ratio: float = 0.22
     # Tempo de cooldown após disparar um swipe, para não disparar repetido no mesmo gesto
     cooldown_s: float = 0.8
     # Tamanho máximo do buffer de posições rastreadas
@@ -42,20 +42,23 @@ class SwipeDetector:
         """Limpa o histórico de posições rastreadas (ex: quando a mão sai de cena)."""
         self._positions.clear()
 
-    def update(self, landmarks) -> str | None:
+    def update(self, landmarks, is_palm: bool) -> str | None:
         """
         Atualiza o rastreador com os landmarks do frame atual.
 
         Args:
             landmarks: sequência de landmarks do MediaPipe (21 pontos),
                 com coordenadas x,y normalizadas entre 0 e 1.
+            is_palm: True quando o gesto estático atual é a mão aberta (palm).
+                O swipe só é rastreado enquanto a mão estiver aberta, para
+                evitar que outros movimentos laterais disparem o gesto.
 
         Returns:
             GESTURE_SWIPE_LEFT, GESTURE_SWIPE_RIGHT ou None se nenhum swipe foi detectado.
         """
         now = time.monotonic()
 
-        if landmarks is None:
+        if landmarks is None or not is_palm:
             self.reset()
             return None
 

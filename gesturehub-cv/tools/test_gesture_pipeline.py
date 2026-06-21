@@ -28,13 +28,16 @@ def main():
             result = pipeline.process_frame(frame, timestamp_ms)
             timestamp_ms += 33
 
-            print(
-                f"Gesto: {result['gesture']} | "
-                f"Evento: {result['event']} | "
-                f"Status: {result['status']} | "
-                f"Confianca: {result['confidence']} | "
-                f"Cooldown: {result['cooldown']}"
-            )
+            if result["event"] in ("GESTURE_SWIPE_LEFT", "GESTURE_SWIPE_RIGHT"):
+                print(f">>> SWIPE DETECTADO: {result['event']} <<<")
+            elif result["event"] != "NO_GESTURE":
+                print(
+                    f"Gesto: {result['gesture']} | "
+                    f"Evento: {result['event']} | "
+                    f"Status: {result['status']} | "
+                    f"Confianca: {result['confidence']} | "
+                    f"Cooldown: {result['cooldown']}"
+                )
 
             cv2.imshow("GesturePipeline Test", result["result_frame"])
 
