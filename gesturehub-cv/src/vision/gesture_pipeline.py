@@ -11,6 +11,7 @@ from src.config.paths import HAND_LANDMARKER_MODEL_PATH, GESTURE_SVM_MODEL_PATH
 from src.vision.hand_landmarker_service import HandLandmarkerService
 from src.vision.gesture_classifier import GestureClassifier
 from src.vision.gesture_labels import (
+    GESTURE_PALM,
     NO_GESTURE,
     SWIPE_INFO,
     get_default_action,
@@ -189,7 +190,7 @@ class GesturePipeline:
 
             stabilizer_result = self.stabilizer.update(raw_label)
 
-            swipe_event = self.swipe_detector.update(landmarks)
+            swipe_event = self.swipe_detector.update(landmarks, is_palm=event == GESTURE_PALM)
             if swipe_event is not None:
                 swipe_info = SWIPE_INFO[swipe_event]
                 gesture = swipe_info["gesture"]
@@ -225,7 +226,7 @@ class GesturePipeline:
             )
         else:
             stabilizer_result = self.stabilizer.update(None)
-            self.swipe_detector.update(None)
+            self.swipe_detector.update(None, is_palm=False)
 
             raw_label = None
             gesture = "Nenhum"
