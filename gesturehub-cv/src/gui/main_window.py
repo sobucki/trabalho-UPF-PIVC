@@ -36,9 +36,9 @@ from .styles import (
 from src.vision.gesture_pipeline import GesturePipeline
 from src.gui.image_utils import cv_frame_to_qpixmap
 
-from src.integrations.default_configs import DEFAULT_INTEGRATIONS
 from src.integrations.command_mapper import CommandMapper
 from src.integrations.command_executor import CommandExecutor
+from src.integrations.integrations_store import load_integrations, save_integrations
 
 
 class MainWindow(QMainWindow):
@@ -55,7 +55,8 @@ class MainWindow(QMainWindow):
         self.is_running = False
         self._enhance_low_light_enabled = False
         
-        self._command_mapper = CommandMapper(DEFAULT_INTEGRATIONS, active_integration_id="presentations")
+        integrations, active_integration_id = load_integrations()
+        self._command_mapper = CommandMapper(integrations, active_integration_id=active_integration_id)
         self._command_executor = CommandExecutor()
         
         self._capture = None
@@ -117,13 +118,14 @@ class MainWindow(QMainWindow):
         integ_icon = QLabel()
         integ_icon.setPixmap(icons.icon_integration().pixmap(QSize(14, 14)))
         integ_icon.setStyleSheet("background: transparent; border: none;")
-        integ_title = QLabel("Integração: Apresentações")
-        integ_title.setStyleSheet("font-size: 13px; font-weight: 500; color: #111827; background: transparent; border: none;")
-        
+        self.integ_title = QLabel()
+        self.integ_title.setStyleSheet("font-size: 13px; font-weight: 500; color: #111827; background: transparent; border: none;")
+        self._update_integration_label()
+
         integ_box = QHBoxLayout()
         integ_box.setSpacing(6)
         integ_box.addWidget(integ_icon)
-        integ_box.addWidget(integ_title)
+        integ_box.addWidget(self.integ_title)
         
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
@@ -525,11 +527,22 @@ class MainWindow(QMainWindow):
         if self._gesture_pipeline is not None:
             self._gesture_pipeline.enhance_low_light = checked
 
+    def _update_integration_label(self):
+        integration_name = self._command_mapper.get_active_integration()["name"]
+        self.integ_title.setText(f"Integração: {integration_name}")
+
     def _open_command_settings(self):
-        dialog = CommandSettingsDialog(self, integrations=self._command_mapper.integrations)
+        dialog = CommandSettingsDialog(
+            self,
+            integrations=self._command_mapper.integrations,
+            active_integration_id=self._command_mapper.active_integration_id,
+        )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             updated_integrations = dialog.get_integrations()
             self._command_mapper.update_integrations(updated_integrations)
+            self._command_mapper.set_active_integration(dialog.current_integration_id)
+            self._update_integration_label()
+            save_integrations(updated_integrations, dialog.current_integration_id)
         
     def closeEvent(self, event):
         """Garante a liberacao segura dos recursos C/C++ ao fechar o form"""

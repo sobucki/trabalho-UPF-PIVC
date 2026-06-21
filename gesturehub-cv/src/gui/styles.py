@@ -122,6 +122,14 @@ def get_app_stylesheet() -> str:
     QComboBox:focus, QLineEdit:focus {{
         border-color: {PRIMARY};
     }}
+    QComboBox QAbstractItemView {{
+        background-color: {SURFACE};
+        color: {TEXT_PRIMARY};
+        border: 1px solid {BORDER};
+        selection-background-color: {SURFACE_GREEN};
+        selection-color: {PRIMARY_DARK};
+        outline: none;
+    }}
     QTableWidget {{
         background-color: {SURFACE};
         border: 1px solid {BORDER};
