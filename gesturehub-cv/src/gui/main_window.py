@@ -6,7 +6,7 @@ import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog, QFrame,
-    QToolButton
+    QToolButton, QComboBox
 )
 from PySide6.QtCore import Qt, QTimer, QSize
 
@@ -286,9 +286,18 @@ class MainWindow(QMainWindow):
         self.btn_carregar_vid.setIconSize(BUTTON_ICON_SIZE)
         self.btn_carregar_vid.clicked.connect(self._handle_video_btn)
         
+        self.cb_cooldown = QComboBox()
+        self.cb_cooldown.addItems(["0.5s", "1.0s", "1.2s", "1.5s", "2.0s", "3.0s", "4.0s", "5.0s"])
+        self.cb_cooldown.setCurrentText("1.2s")
+        self.cb_cooldown.setToolTip("Tempo de Cooldown")
+        self.cb_cooldown.setFixedWidth(80)
+        self.cb_cooldown.currentTextChanged.connect(self._on_cooldown_changed)
+        
         footer_layout.addWidget(self.btn_iniciar)
         footer_layout.addWidget(self.btn_parar)
         footer_layout.addStretch()
+        footer_layout.addWidget(QLabel("Cooldown:"))
+        footer_layout.addWidget(self.cb_cooldown)
         footer_layout.addWidget(self.btn_configurar)
         footer_layout.addWidget(self.btn_carregar_vid)
         
@@ -340,7 +349,12 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self._gesture_pipeline = GesturePipeline()
+            cooldown_val = float(self.cb_cooldown.currentText().replace("s", ""))
+        except ValueError:
+            cooldown_val = 1.2
+
+        try:
+            self._gesture_pipeline = GesturePipeline(cooldown_seconds=cooldown_val)
             self._gesture_pipeline.enhance_low_light = self._enhance_low_light_enabled
             self._gesture_pipeline.start()
         except Exception as exc:
@@ -530,6 +544,14 @@ class MainWindow(QMainWindow):
     def _update_integration_label(self):
         integration_name = self._command_mapper.get_active_integration()["name"]
         self.integ_title.setText(f"Integração: {integration_name}")
+
+    def _on_cooldown_changed(self, text: str):
+        if self._gesture_pipeline:
+            try:
+                cooldown_val = float(text.replace("s", ""))
+                self._gesture_pipeline.stabilizer.cooldown_seconds = cooldown_val
+            except ValueError:
+                pass
 
     def _open_command_settings(self):
         dialog = CommandSettingsDialog(

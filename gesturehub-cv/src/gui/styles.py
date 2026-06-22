@@ -115,9 +115,13 @@ def get_app_stylesheet() -> str:
     QComboBox, QLineEdit {{
         background-color: {SURFACE};
         border: 1px solid {BORDER};
-        border-radius: 4px;
-        padding: 6px 10px;
+        border-radius: 6px;
+        padding: 6px 14px;
         color: {TEXT_PRIMARY};
+        font-weight: 500;
+    }}
+    QComboBox:hover, QLineEdit:hover {{
+        border-color: {BORDER_GREEN};
     }}
     QComboBox:focus, QLineEdit:focus {{
         border-color: {PRIMARY};
@@ -126,9 +130,16 @@ def get_app_stylesheet() -> str:
         background-color: {SURFACE};
         color: {TEXT_PRIMARY};
         border: 1px solid {BORDER};
+        border-radius: 6px;
         selection-background-color: {SURFACE_GREEN};
         selection-color: {PRIMARY_DARK};
         outline: none;
+    }}
+    QComboBox::drop-down {{
+        subcontrol-origin: padding;
+        subcontrol-position: top right;
+        width: 20px;
+        border-left: 1px solid transparent;
     }}
     QTableWidget {{
         background-color: {SURFACE};
