@@ -39,6 +39,7 @@ from src.gui.image_utils import cv_frame_to_qpixmap
 from src.integrations.command_mapper import CommandMapper
 from src.integrations.command_executor import CommandExecutor
 from src.integrations.integrations_store import load_integrations, save_integrations
+from src.config.settings_store import load_settings, save_settings
 
 
 class MainWindow(QMainWindow):
@@ -58,6 +59,8 @@ class MainWindow(QMainWindow):
         integrations, active_integration_id = load_integrations()
         self._command_mapper = CommandMapper(integrations, active_integration_id=active_integration_id)
         self._command_executor = CommandExecutor()
+        
+        self._app_settings = load_settings()
         
         self._capture = None
         self._camera_timer = QTimer(self)
@@ -288,7 +291,7 @@ class MainWindow(QMainWindow):
         
         self.cb_cooldown = QComboBox()
         self.cb_cooldown.addItems(["0.5s", "1.0s", "1.2s", "1.5s", "2.0s", "3.0s", "4.0s", "5.0s"])
-        self.cb_cooldown.setCurrentText("1.2s")
+        self.cb_cooldown.setCurrentText(self._app_settings.get("cooldown", "1.2s"))
         self.cb_cooldown.setToolTip("Tempo de Cooldown")
         self.cb_cooldown.setFixedWidth(80)
         self.cb_cooldown.currentTextChanged.connect(self._on_cooldown_changed)
@@ -546,6 +549,9 @@ class MainWindow(QMainWindow):
         self.integ_title.setText(f"Integração: {integration_name}")
 
     def _on_cooldown_changed(self, text: str):
+        self._app_settings["cooldown"] = text
+        save_settings(self._app_settings)
+
         if self._gesture_pipeline:
             try:
                 cooldown_val = float(text.replace("s", ""))
