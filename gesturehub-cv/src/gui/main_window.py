@@ -296,11 +296,27 @@ class MainWindow(QMainWindow):
         self.cb_cooldown.setFixedWidth(80)
         self.cb_cooldown.currentTextChanged.connect(self._on_cooldown_changed)
         
+        self.cb_resolution = QComboBox()
+        self.cb_resolution.addItems(["Nativa", "720p", "480p", "360p", "240p"])
+        self.cb_resolution.setCurrentText(self._app_settings.get("resolution", "Nativa"))
+        self.cb_resolution.setToolTip("Resolução de Processamento")
+        self.cb_resolution.setFixedWidth(100)
+        self.cb_resolution.currentTextChanged.connect(self._on_resolution_changed)
+        
         footer_layout.addWidget(self.btn_iniciar)
         footer_layout.addWidget(self.btn_parar)
         footer_layout.addStretch()
-        footer_layout.addWidget(QLabel("Cooldown:"))
+        
+        res_label = QLabel("Resolução:")
+        res_label.setStyleSheet("color: #667085; font-weight: 500;")
+        footer_layout.addWidget(res_label)
+        footer_layout.addWidget(self.cb_resolution)
+        
+        cool_label = QLabel("Cooldown:")
+        cool_label.setStyleSheet("color: #667085; font-weight: 500;")
+        footer_layout.addWidget(cool_label)
         footer_layout.addWidget(self.cb_cooldown)
+        
         footer_layout.addWidget(self.btn_configurar)
         footer_layout.addWidget(self.btn_carregar_vid)
         
@@ -415,6 +431,14 @@ class MainWindow(QMainWindow):
 
         if not self._video_source:
             frame = cv2.flip(frame, 1)
+            
+        resolution_setting = self._app_settings.get("resolution", "Nativa")
+        if resolution_setting != "Nativa":
+            target_h = int(resolution_setting.replace("p", ""))
+            h, w = frame.shape[:2]
+            if target_h < h:
+                target_w = int(w * (target_h / h))
+                frame = cv2.resize(frame, (target_w, target_h))
 
         try:
             result = self._gesture_pipeline.process_frame(frame, self._timestamp_ms)
@@ -547,6 +571,10 @@ class MainWindow(QMainWindow):
     def _update_integration_label(self):
         integration_name = self._command_mapper.get_active_integration()["name"]
         self.integ_title.setText(f"Integração: {integration_name}")
+
+    def _on_resolution_changed(self, text: str):
+        self._app_settings["resolution"] = text
+        save_settings(self._app_settings)
 
     def _on_cooldown_changed(self, text: str):
         self._app_settings["cooldown"] = text

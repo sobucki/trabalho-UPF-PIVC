@@ -7,7 +7,7 @@ from src.config.paths import SETTINGS_CONFIG_PATH
 
 DEFAULT_SETTINGS = {
     "cooldown": "1.2s",
-    # Outras configurações futuras podem ser adicionadas aqui
+    "resolution": "Nativa",
 }
 
 
