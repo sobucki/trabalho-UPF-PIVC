@@ -8,10 +8,11 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog, QFrame,
     QToolButton, QComboBox
 )
-from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtCore import Qt, QTimer, QSize, QEvent
 
 from src.gui import icons
 
+from .floating_view import FloatingView
 from .processing_view import ProcessingView
 from .command_settings_dialog import CommandSettingsDialog
 from .styles import (
@@ -70,6 +71,8 @@ class MainWindow(QMainWindow):
         self._timestamp_ms = 0
         self._camera_index = 0
         self._video_source = None
+        
+        self.floating_view = FloatingView()
         
         self._setup_ui()
         
@@ -411,6 +414,9 @@ class MainWindow(QMainWindow):
             self._gesture_pipeline.close()
             self._gesture_pipeline = None
 
+        if self.floating_view.isVisible():
+            self.floating_view.hide()
+
     def _process_camera_frame(self) -> None:
         if self._capture is None or self._gesture_pipeline is None:
             return
@@ -458,6 +464,12 @@ class MainWindow(QMainWindow):
             execution_result = self._command_executor.execute(command_config)
 
         self._update_processing_view(result)
+        
+        # Atualizar a janela flutuante se estiver visível
+        if self.floating_view.isVisible():
+            pixmap = cv_frame_to_qpixmap(result["result_frame"])
+            self.floating_view.update_frame(pixmap)
+            
         self._update_recognition_panel_from_result(result, execution_result)
 
     def _update_processing_view(self, result: dict) -> None:
@@ -599,8 +611,17 @@ class MainWindow(QMainWindow):
             self._command_mapper.set_active_integration(dialog.current_integration_id)
             self._update_integration_label()
             save_integrations(updated_integrations, dialog.current_integration_id)
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.WindowStateChange:
+            if self.isMinimized() and self.is_running:
+                self.floating_view.show()
+            elif not self.isMinimized():
+                self.floating_view.hide()
+        super().changeEvent(event)
         
     def closeEvent(self, event):
         """Garante a liberacao segura dos recursos C/C++ ao fechar o form"""
         self._stop_camera()
+        self.floating_view.deleteLater()
         super().closeEvent(event)
