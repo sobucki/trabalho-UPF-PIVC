@@ -197,15 +197,6 @@ def render_final_frame(
         draw_landmarks(output, landmarks)
         draw_hand_bounding_box(output, landmarks)
 
-    draw_status_overlay(
-        output, 
-        gesture_name=gesture_name, 
-        event_name=event_name, 
-        status=status, 
-        stable_frames=stable_frames, 
-        required_frames=required_frames
-    )
-
     return output
 
 # Alias para compatibilidade temporal com a POC

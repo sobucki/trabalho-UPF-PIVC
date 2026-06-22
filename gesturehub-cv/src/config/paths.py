@@ -9,6 +9,7 @@ HAND_LANDMARKER_MODEL_PATH = MODELS_DIR / "hand_landmarker.task"
 GESTURE_SVM_MODEL_PATH = MODELS_DIR / "gesture_model.xml"
 GESTURE_DATA_PATH = MODELS_DIR / "gesture_data.csv"
 INTEGRATIONS_CONFIG_PATH = CONFIG_DIR / "integrations.json"
+SETTINGS_CONFIG_PATH = CONFIG_DIR / "settings.json"
 
 def validate_model_files() -> list[str]:
     missing_files = []

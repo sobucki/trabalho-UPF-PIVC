@@ -6,12 +6,13 @@ import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QPushButton, QGroupBox, QMessageBox, QDialog, QCheckBox, QFileDialog, QFrame,
-    QToolButton
+    QToolButton, QComboBox
 )
-from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtCore import Qt, QTimer, QSize, QEvent
 
 from src.gui import icons
 
+from .floating_view import FloatingView
 from .processing_view import ProcessingView
 from .command_settings_dialog import CommandSettingsDialog
 from .styles import (
@@ -39,6 +40,7 @@ from src.gui.image_utils import cv_frame_to_qpixmap
 from src.integrations.command_mapper import CommandMapper
 from src.integrations.command_executor import CommandExecutor
 from src.integrations.integrations_store import load_integrations, save_integrations
+from src.config.settings_store import load_settings, save_settings
 
 
 class MainWindow(QMainWindow):
@@ -59,6 +61,8 @@ class MainWindow(QMainWindow):
         self._command_mapper = CommandMapper(integrations, active_integration_id=active_integration_id)
         self._command_executor = CommandExecutor()
         
+        self._app_settings = load_settings()
+        
         self._capture = None
         self._camera_timer = QTimer(self)
         self._camera_timer.timeout.connect(self._process_camera_frame)
@@ -67,6 +71,8 @@ class MainWindow(QMainWindow):
         self._timestamp_ms = 0
         self._camera_index = 0
         self._video_source = None
+        
+        self.floating_view = FloatingView()
         
         self._setup_ui()
         
@@ -286,9 +292,34 @@ class MainWindow(QMainWindow):
         self.btn_carregar_vid.setIconSize(BUTTON_ICON_SIZE)
         self.btn_carregar_vid.clicked.connect(self._handle_video_btn)
         
+        self.cb_cooldown = QComboBox()
+        self.cb_cooldown.addItems(["0.5s", "1.0s", "1.2s", "1.5s", "2.0s", "3.0s", "4.0s", "5.0s"])
+        self.cb_cooldown.setCurrentText(self._app_settings.get("cooldown", "1.2s"))
+        self.cb_cooldown.setToolTip("Tempo de Cooldown")
+        self.cb_cooldown.setFixedWidth(80)
+        self.cb_cooldown.currentTextChanged.connect(self._on_cooldown_changed)
+        
+        self.cb_resolution = QComboBox()
+        self.cb_resolution.addItems(["Nativa", "720p", "480p", "360p", "240p"])
+        self.cb_resolution.setCurrentText(self._app_settings.get("resolution", "Nativa"))
+        self.cb_resolution.setToolTip("Resolução de Processamento")
+        self.cb_resolution.setFixedWidth(100)
+        self.cb_resolution.currentTextChanged.connect(self._on_resolution_changed)
+        
         footer_layout.addWidget(self.btn_iniciar)
         footer_layout.addWidget(self.btn_parar)
         footer_layout.addStretch()
+        
+        res_label = QLabel("Resolução:")
+        res_label.setStyleSheet("color: #667085; font-weight: 500;")
+        footer_layout.addWidget(res_label)
+        footer_layout.addWidget(self.cb_resolution)
+        
+        cool_label = QLabel("Cooldown:")
+        cool_label.setStyleSheet("color: #667085; font-weight: 500;")
+        footer_layout.addWidget(cool_label)
+        footer_layout.addWidget(self.cb_cooldown)
+        
         footer_layout.addWidget(self.btn_configurar)
         footer_layout.addWidget(self.btn_carregar_vid)
         
@@ -340,7 +371,12 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self._gesture_pipeline = GesturePipeline()
+            cooldown_val = float(self.cb_cooldown.currentText().replace("s", ""))
+        except ValueError:
+            cooldown_val = 1.2
+
+        try:
+            self._gesture_pipeline = GesturePipeline(cooldown_seconds=cooldown_val)
             self._gesture_pipeline.enhance_low_light = self._enhance_low_light_enabled
             self._gesture_pipeline.start()
         except Exception as exc:
@@ -378,6 +414,9 @@ class MainWindow(QMainWindow):
             self._gesture_pipeline.close()
             self._gesture_pipeline = None
 
+        if self.floating_view.isVisible():
+            self.floating_view.hide()
+
     def _process_camera_frame(self) -> None:
         if self._capture is None or self._gesture_pipeline is None:
             return
@@ -398,6 +437,14 @@ class MainWindow(QMainWindow):
 
         if not self._video_source:
             frame = cv2.flip(frame, 1)
+            
+        resolution_setting = self._app_settings.get("resolution", "Nativa")
+        if resolution_setting != "Nativa":
+            target_h = int(resolution_setting.replace("p", ""))
+            h, w = frame.shape[:2]
+            if target_h < h:
+                target_w = int(w * (target_h / h))
+                frame = cv2.resize(frame, (target_w, target_h))
 
         try:
             result = self._gesture_pipeline.process_frame(frame, self._timestamp_ms)
@@ -417,6 +464,12 @@ class MainWindow(QMainWindow):
             execution_result = self._command_executor.execute(command_config)
 
         self._update_processing_view(result)
+        
+        # Atualizar a janela flutuante se estiver visível
+        if self.floating_view.isVisible():
+            pixmap = cv_frame_to_qpixmap(result["result_frame"])
+            self.floating_view.update_frame(pixmap)
+            
         self._update_recognition_panel_from_result(result, execution_result)
 
     def _update_processing_view(self, result: dict) -> None:
@@ -531,6 +584,21 @@ class MainWindow(QMainWindow):
         integration_name = self._command_mapper.get_active_integration()["name"]
         self.integ_title.setText(f"Integração: {integration_name}")
 
+    def _on_resolution_changed(self, text: str):
+        self._app_settings["resolution"] = text
+        save_settings(self._app_settings)
+
+    def _on_cooldown_changed(self, text: str):
+        self._app_settings["cooldown"] = text
+        save_settings(self._app_settings)
+
+        if self._gesture_pipeline:
+            try:
+                cooldown_val = float(text.replace("s", ""))
+                self._gesture_pipeline.stabilizer.cooldown_seconds = cooldown_val
+            except ValueError:
+                pass
+
     def _open_command_settings(self):
         dialog = CommandSettingsDialog(
             self,
@@ -543,8 +611,17 @@ class MainWindow(QMainWindow):
             self._command_mapper.set_active_integration(dialog.current_integration_id)
             self._update_integration_label()
             save_integrations(updated_integrations, dialog.current_integration_id)
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.WindowStateChange:
+            if self.isMinimized() and self.is_running:
+                self.floating_view.show()
+            elif not self.isMinimized():
+                self.floating_view.hide()
+        super().changeEvent(event)
         
     def closeEvent(self, event):
         """Garante a liberacao segura dos recursos C/C++ ao fechar o form"""
         self._stop_camera()
+        self.floating_view.deleteLater()
         super().closeEvent(event)
