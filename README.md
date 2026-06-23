@@ -24,7 +24,7 @@ A arquitetura e as funções do projeto estão divididas nos seguintes módulos 
 
 ## 🎥 Vídeo Demonstrativo
 
-[Assista à demonstração do GestureHub CV no YouTube](https://www.youtube.com/watch?v=SEU_LINK_AQUI)
+[Assista à demonstração do GestureHub CV no YouTube](https://youtu.be/mGNnA6EgXH8)
 
 ## ⚙️ Pré-requisitos
 
